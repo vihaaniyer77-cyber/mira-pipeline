@@ -28,8 +28,15 @@ The ultimate defense against false positives.
 - **Saturation Bouncer:** Instantly rejects any subtraction anomaly located near a saturated pixel (blooming/bleeding column artifact).
 - **Temporal Bouncer:** Forces Engine A transients and Engine B variables to persist for 3 consecutive frames before allowing an alert to be logged.
 
-### 7. `alert_logger.py`
-The output engine. When a transient survives all vetting, this module crops a 200x200 pixel sub-image around the exact coordinate, plots red crosshairs over the target, and saves a timestamped PNG to disk for human review.
+### 7. `astrometry_solver.py`
+The WCS Generation engine. Since the pipeline operates without internet, this module uses Python's `subprocess` to trigger a local installation of `astrometry.net` (`solve-field`). When the telescope settles on a new star field during Burn-In, it autonomously calculates the exact World Coordinate System (WCS) matrix so the pipeline knows precisely where it is pointing.
+
+### 8. `alert_logger.py`
+The output engine and Real-Time Alarm. When a transient survives all vetting, this module:
+- Uses `astropy.wcs` to instantly transform the raw X/Y pixel coordinate into a precise RA and Dec.
+- Crops a 200x200 pixel sub-image around the target and plots red crosshairs.
+- Saves a timestamped PNG and a `.txt` file containing the RA/Dec for the astronomer to copy-paste.
+- Triggers a loud, real-time audible alarm in the control room to instantly wake up the astronomer so they can slew the main telescope!
 
 ## The Test Suite
 - `test_integration.py`: A massive 11-frame mock camera simulation that verifies all 7 modules work together, generating master references, catching injected flares, verifying injected supernovae, and gracefully rebooting during telescope slews.
