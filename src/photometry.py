@@ -10,7 +10,7 @@ class PhotometryEngine:
     circular aperture over every star and maintains a rolling history of their brightness.
     
     It actively hunts for two specific types of anomalies:
-    1. Sudden Spikes (Flares) via a Rolling Z-Score.
+    1. Sudden Spikes (Flares, Novae) via a Rolling Z-Score.
     2. Slow Oscillations (Pulsators) via Rolling Variance.
     """
     def __init__(self, window_size=10, z_threshold=4.0, min_std=15.0, var_threshold_multiplier=3.0):
