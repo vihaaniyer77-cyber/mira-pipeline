@@ -59,7 +59,7 @@ def solve_wcs_for_image(fits_filepath):
             
     except FileNotFoundError:
         # This triggers if "solve-field" is not installed on the system (e.g. during local tests)
-        print("⚠️ Astrometry WARNING: 'solve-field' is not installed or not in PATH.")
+        print("Astrometry WARNING: 'solve-field' is not installed or not in PATH.")
         print("Falling back to raw X/Y pixel coordinates. Please install astrometry.net for RA/Dec.")
         return None
     except Exception as e:

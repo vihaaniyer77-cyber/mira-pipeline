@@ -14,9 +14,9 @@ Handles basic image processing. It aligns every incoming target image to the dyn
 The autonomous mapping engine. Because the pipeline operates without Internet or WCS coordinates, this module uses `DAOStarFinder` to dynamically locate the (X, Y) pixel centroids of all stars in the master reference frame. It enforces a `max_stars` cap (CPU protection) and a `saturation_level` mask (Photometry protection).
 
 ### 4. `photometry.py` (Engine B)
-The light-curve engine. It tracks the brightness of every mapped star across time. It utilizes two triggers:
-- **Z-score Trigger:** Catches sudden, 1-frame massive spikes (Flares).
-- **Rolling Variance Trigger:** Catches slow, multi-frame wave fluctuations (Pulsators/Variables).
+The light-curve engine. It tracks the brightness of every mapped star across time. It utilizes two triggers mathematically grounded in Poisson statistics (shot noise ~ sqrt(flux)) to avoid false positives on bright targets:
+- **Z-score Anomaly Trigger:** Catches sudden, 1-frame massive spikes or dips (absolute deviation from expected Poisson noise).
+- **Rolling Variance Trigger:** Catches slow, multi-frame wave fluctuations (Pulsators/Variables) by comparing empirical variance to theoretical shot noise.
 It aggressively truncates historical data to prevent memory leaks over long observing shifts.
 
 ### 5. `subtraction.py` (Engine A)
@@ -39,6 +39,7 @@ The output engine and Real-Time Alarm. When a transient survives all vetting, th
 - Triggers a loud, real-time audible alarm in the control room to instantly wake up the astronomer so they can slew the main telescope!
 
 ## The Test Suite
+- `test_pipeline.py`: The live-data validation script. It emulates the camera spool loop by feeding real `.fit` files with delays, applying master calibration frames, mapping light curves of background stars, and outputting matplotlib visual proofs of anomalies.
 - `test_integration.py`: A massive 11-frame mock camera simulation that verifies all 7 modules work together, generating master references, catching injected flares, verifying injected supernovae, and gracefully rebooting during telescope slews.
 - `test_saturation.py`: Verifies that the spatial masking successfully rejects saturated targets.
 - `test_stress.py`: An extreme numerical stress test that pushes the CPU, RAM, and Disk I/O limits of the pipeline via Crowded Field, Long Shift, Massive Outbreak, and Thick Cloud simulations. 

@@ -6,7 +6,7 @@ from astropy.io import fits
 import matplotlib.pyplot as plt
 
 import sys
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
 from orchestrator import Orchestrator
 
@@ -83,7 +83,7 @@ def main():
     print(f"Found {len(fits_files)} frames for target {target} in filter {filter_band}.")
     
     # 3. Emulate the Watchdog (feeding frames with delay)
-    for idx, filepath in enumerate(fits_files[:10]):
+    for idx, filepath in enumerate(fits_files):
         print(f"\n--- Simulating New Frame {idx+1}/{len(fits_files)} ---")
         orchestrator.process_new_image(filepath)
         

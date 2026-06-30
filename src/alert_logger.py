@@ -95,7 +95,7 @@ class AlertLogger:
             writer.writerow([timestamp, engine_name, x, y, ra_str, dec_str, filename])
             
         # 6. Trigger Real-Time Audible Alarm
-        print(f"🚨 DISCOVERY LOGGED [{engine_name}] at RA:{ra_str}, Dec:{dec_str} (X:{x}, Y:{y}). Saved to {filename}")
+        print(f"DISCOVERY LOGGED [{engine_name}] at RA:{ra_str}, Dec:{dec_str} (X:{x}, Y:{y}). Saved to {filename}")
         
         # Terminal bell (works universally)
         print("\a", end="")
