@@ -1,12 +1,12 @@
 # MIRA Autonomous Piggyback Pipeline
 
-**MIRA (Monterey Institute for Research in Astronomy) Piggyback Pipeline** is a fully autonomous, blind-survey transient detection system designed to operate on a secondary, wide-field telescope (e.g., a 14-inch scope) that is physically mounted ("piggybacking") on a primary telescope (e.g., a 36-inch scope).
+**MIRA (Monterey Institute for Research in Astronomy)  Pipeline** is a fully autonomous, blind-survey transient detection system designed to operate on a secondary, wide-field telescope (e.g., a 14-inch scope) that is physically mounted on a primary telescope (e.g., a 36-inch scope).
 
 ## The Problem
 When the primary 36-inch telescope is slewing across the sky to target specific exoplanets or variable stars, the piggybacked 14-inch telescope is dragged along with it, staring blindly at random patches of the sky. 
 
 ## The Solution
-Instead of letting the 14-inch gather dust, this pipeline turns it into an autonomous transient discovery engine. The pipeline runs as a daemon, constantly reading FITS files written by the 14-inch camera, and uses advanced mathematics to hunt for Supernovae, Exoplanet flares, and variable stars in real-time.
+Instead of letting the 14-inch gather dust, this pipeline turns it into an autonomous transient discovery engine. The pipeline runs as a daemon, constantly reading FITS files written by the 14-inch camera, and uses advanced mathematics to hunt for Supernovae, Stellar flares, and variable stars in real-time.
 
 ## Key Capabilities
 - **WCS-Independent:** It operates entirely without World Coordinate System (WCS) headers or external catalogs (like Gaia). It autonomously maps the star field dynamically.
