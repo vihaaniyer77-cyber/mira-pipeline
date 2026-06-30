@@ -1,6 +1,6 @@
 import numpy as np
 
-def saturation_vetting(x, y, raw_image, saturation_level=55000.0, search_radius=2):
+def saturation_vetting(x, y, raw_image, saturation_level=66000.0, search_radius=2):
     """
     The Bouncer (Saturation).
     Engine A finds transients by subtracting images. If a bright star in the raw 

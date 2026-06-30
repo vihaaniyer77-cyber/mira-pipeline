@@ -2,7 +2,7 @@ import numpy as np
 from astropy.stats import sigma_clipped_stats
 from photutils.detection import DAOStarFinder
 
-def find_stars_autonomously(image, fwhm_estimate=3.0, threshold_sigma=5.0, max_stars=2000, saturation_level=55000.0):
+def find_stars_autonomously(image, fwhm_estimate=3.0, threshold_sigma=5.0, max_stars=2000, saturation_level=66000.0):
     """
     Scans an image to dynamically locate the (X, Y) pixel coordinates of all 
     stars in the field of view.
@@ -40,7 +40,7 @@ def find_stars_autonomously(image, fwhm_estimate=3.0, threshold_sigma=5.0, max_s
     sources = sources[:max_stars]
     
     # 4. Extract the exact X and Y centroids
-   coordinates = []
+    coordinates = []
     for row in sources:
         x_centroid = row['xcentroid']
         y_centroid = row['ycentroid']

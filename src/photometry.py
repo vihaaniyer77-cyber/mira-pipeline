@@ -70,15 +70,15 @@ class PhotometryEngine:
                 stds.append(raw_std_flux)
                 
                 # TRIGGER 1: The Pulsator Catch (Slow Variables)
-                # If the raw rolling standard deviation exceeds the atmospheric noise floor multiplier
-                if raw_std_flux > self.min_std * self.var_threshold_multiplier:
+                # We model the expected noise floor using Poisson statistics (shot noise ~ sqrt(flux))
+                expected_noise = max(np.sqrt(abs(mean_flux)), self.min_std)
+                if raw_std_flux > expected_noise * self.var_threshold_multiplier:
                     var_alerts.append(i)
                 
-                # Apply the noise floor to prevent dividing by an artificially small sample std
-                std_flux = max(raw_std_flux, self.min_std)
+                # Apply the dynamic noise floor to prevent dividing by an artificially small sample std
+                std_flux = max(raw_std_flux, expected_noise)
                 
-                # Guard against exact zero std with a tiny epsilon so alerts still fire
-                # when flux suddenly jumps from a perfectly constant baseline (e.g. simulations)
+                # Guard against exact zero std with a tiny epsilon
                 z = (flux - mean_flux) / (std_flux if std_flux > 0 else 1e-10)
             else:
                 # Not enough history to calculate statistics

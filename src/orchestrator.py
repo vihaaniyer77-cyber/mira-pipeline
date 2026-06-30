@@ -118,7 +118,7 @@ class Orchestrator:
         # Flares are 1-frame events. They bypass the temporal bouncer.
         for idx in z_alerts:
             x, y = self.background_stars_xy[idx]
-            self.alert_logger.log_alert("Engine B (Flare)", x, y, aligned_image, wcs=self.current_wcs)
+            self.alert_logger.log_alert("Engine B (Spike/Dip)", x, y, aligned_image, wcs=self.current_wcs)
             
         # Pulsators are slow variables. They go to the bouncer.
         for idx in var_alerts:
