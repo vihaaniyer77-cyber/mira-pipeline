@@ -1,6 +1,6 @@
 # MIRA Autonomous Piggyback Pipeline
 
-**MIRA (Monmouth Intelligent Research Assistant) Piggyback Pipeline** is a fully autonomous, blind-survey transient detection system designed to operate on a secondary, wide-field telescope (e.g., a 14-inch scope) that is physically mounted ("piggybacking") on a primary telescope (e.g., a 36-inch scope).
+**MIRA (Monterey Institute for Research in Astronomy) Piggyback Pipeline** is a fully autonomous, blind-survey transient detection system designed to operate on a secondary, wide-field telescope (e.g., a 14-inch scope) that is physically mounted ("piggybacking") on a primary telescope (e.g., a 36-inch scope).
 
 ## The Problem
 When the primary 36-inch telescope is slewing across the sky to target specific exoplanets or variable stars, the piggybacked 14-inch telescope is dragged along with it, staring blindly at random patches of the sky. 
