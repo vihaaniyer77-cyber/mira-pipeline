@@ -5,9 +5,7 @@ from photutils.detection import DAOStarFinder
 def find_stars_autonomously(image, fwhm_estimate=3.0, threshold_sigma=5.0, max_stars=2000, saturation_level=55000.0):
     """
     Scans an image to dynamically locate the (X, Y) pixel coordinates of all 
-    stars in the field of view. This acts as the autonomous mapping phase 
-    for Engine B when no historical catalog is available.
-    
+    stars in the field of view.
     Args:
         image: 2D numpy array (typically the pristine Dynamic Reference image)
         fwhm_estimate: The estimated Full Width at Half Maximum of stars in pixels.
@@ -42,10 +40,10 @@ def find_stars_autonomously(image, fwhm_estimate=3.0, threshold_sigma=5.0, max_s
     sources = sources[:max_stars]
     
     # 4. Extract the exact X and Y centroids
-    coordinates = []
+   coordinates = []
     for row in sources:
         x_centroid = row['xcentroid']
         y_centroid = row['ycentroid']
         coordinates.append((x_centroid, y_centroid))
         
-    return coordinates
+    return coordinates 
