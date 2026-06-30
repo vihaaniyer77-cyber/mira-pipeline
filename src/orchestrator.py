@@ -11,7 +11,7 @@ from photometry import PhotometryEngine
 from subtraction import optimal_image_subtraction, extract_sources_from_difference
 from vetting import spatial_profile_vetting, saturation_vetting, TemporalVerifier
 from alert_logger import AlertLogger
-
+from astrometry_solver import solve_wcs_for_image
 class Orchestrator:
     """
     The Master Hardware Loop.
@@ -33,6 +33,7 @@ class Orchestrator:
         self.burn_in_cache = []
         self.reference_image = None
         self.background_stars_xy = []
+        self.current_wcs = None
         
         # Initialize the Engines
         self.photometry_engine = PhotometryEngine()
@@ -47,6 +48,7 @@ class Orchestrator:
         self.burn_in_cache = []
         self.reference_image = None
         self.background_stars_xy = []
+        self.current_wcs = None
         self.photometry_engine = PhotometryEngine() # Reset flux history
         self.temporal_verifier = TemporalVerifier() # Reset temporal history
 
@@ -87,6 +89,9 @@ class Orchestrator:
                     self.background_stars_xy = find_stars_autonomously(self.reference_image)
                     print(f"StarFinder locked onto {len(self.background_stars_xy)} background stars.")
                     
+                    # File 3: Attempt to generate World Coordinate System using local astrometry
+                    self.current_wcs = solve_wcs_for_image(filepath)
+                    
                     self.state = "MONITORING"
                 except AlignmentError as e:
                     self.reset_pipeline(f"Telescope slewed during Burn-In: {e}")
@@ -113,7 +118,7 @@ class Orchestrator:
         # Flares are 1-frame events. They bypass the temporal bouncer.
         for idx in z_alerts:
             x, y = self.background_stars_xy[idx]
-            self.alert_logger.log_alert("Engine B (Flare)", x, y, aligned_image)
+            self.alert_logger.log_alert("Engine B (Flare)", x, y, aligned_image, wcs=self.current_wcs)
             
         # Pulsators are slow variables. They go to the bouncer.
         for idx in var_alerts:
@@ -142,7 +147,7 @@ class Orchestrator:
             # Find the original candidate data to pass to the logger
             for x, y, engine in current_transient_candidates:
                 if (int(round(x)), int(round(y))) == survivor_id:
-                    self.alert_logger.log_alert(engine, x, y, aligned_image)
+                    self.alert_logger.log_alert(engine, x, y, aligned_image, wcs=self.current_wcs)
                     break # Logged
 
     def run_watchdog(self):

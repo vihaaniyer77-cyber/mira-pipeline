@@ -25,9 +25,9 @@ class AlertLogger:
         if not os.path.exists(self.csv_path):
             with open(self.csv_path, mode='w', newline='') as file:
                 writer = csv.writer(file)
-                writer.writerow(["Timestamp", "Engine", "X_Pixel", "Y_Pixel", "Image_File"])
+                writer.writerow(["Timestamp", "Engine", "X_Pixel", "Y_Pixel", "RA", "Dec", "Image_File"])
 
-    def log_alert(self, engine_name, x, y, full_image, crop_size=50):
+    def log_alert(self, engine_name, x, y, full_image, crop_size=50, wcs=None):
         """
         Logs a confirmed transient alert to the CSV and saves a cropped PNG image.
         
@@ -68,10 +68,40 @@ class AlertLogger:
         plt.savefig(filepath, dpi=150)
         plt.close()
         
-        # 4. Append to the localized CSV database
+        # 4. Handle Astrometry (WCS Transformation)
+        ra_str = "Unknown"
+        dec_str = "Unknown"
+        if wcs is not None:
+            try:
+                sky_coord = wcs.pixel_to_world(x, y)
+                ra_str = f"{sky_coord.ra.deg:.5f}"
+                dec_str = f"{sky_coord.dec.deg:.5f}"
+                
+                # Write an explicit text file so the astronomer can copy-paste RA/Dec
+                txt_filename = filename.replace(".png", ".txt")
+                txt_filepath = os.path.join(self.output_dir, txt_filename)
+                with open(txt_filepath, 'w') as f:
+                    f.write(f"--- MIRA PIPELINE ALERT ---\n")
+                    f.write(f"Type: {engine_name}\n")
+                    f.write(f"RA (deg): {ra_str}\n")
+                    f.write(f"Dec (deg): {dec_str}\n")
+                    f.write(f"Pixel: X:{x}, Y:{y}\n")
+            except Exception as e:
+                print(f"Warning: Failed to convert pixels to RA/Dec: {e}")
+                
+        # 5. Append to the localized CSV database
         with open(self.csv_path, mode='a', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow([timestamp, engine_name, x, y, filename])
+            writer.writerow([timestamp, engine_name, x, y, ra_str, dec_str, filename])
             
-        # Also print to the console so the live terminal shows activity
-        print(f"🚨 DISCOVERY LOGGED [{engine_name}] at X:{x}, Y:{y}. Saved to {filename}")
+        # 6. Trigger Real-Time Audible Alarm
+        print(f"🚨 DISCOVERY LOGGED [{engine_name}] at RA:{ra_str}, Dec:{dec_str} (X:{x}, Y:{y}). Saved to {filename}")
+        
+        # Terminal bell (works universally)
+        print("\a", end="")
+        
+        # Mac specific loud ping (background process)
+        try:
+            os.system('afplay /System/Library/Sounds/Glass.aiff &')
+        except Exception:
+            pass
