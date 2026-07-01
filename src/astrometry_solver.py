@@ -8,8 +8,6 @@ def solve_wcs_for_image(fits_filepath):
     Attempts to solve the World Coordinate System (WCS) for a given FITS image using
     a local installation of astrometry.net (solve-field).
     
-    If the software is not installed, or the field cannot be solved, this function 
-    fails gracefully and returns None, triggering the pipeline's fallback mechanism.
     
     Args:
         fits_filepath (str): Absolute path to the raw camera FITS file.
@@ -24,12 +22,12 @@ def solve_wcs_for_image(fits_filepath):
     wcs_output_path = fits_filepath.replace(".fits", ".wcs")
     
     try:
-        # Run the local solve-field command
+        # Run the local solve-field command -- launches an external terminal solve-field
         # --overwrite: Overwrite existing .wcs files
         # --no-plots: We don't need astrometry.net generating annotated images
-        # --cpulimit 10: Fail fast if it can't solve it in 10 seconds
+        # --cpulimit 60: Fail fast if it can't solve it in 10 seconds
         result = subprocess.run(
-            ["solve-field", "--overwrite", "--no-plots", "--cpulimit", "10", fits_filepath],
+            ["solve-field", "--overwrite", "--no-plots", "--cpulimit", "60", fits_filepath],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True
