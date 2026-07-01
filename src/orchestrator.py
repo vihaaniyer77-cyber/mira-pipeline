@@ -28,6 +28,15 @@ class Orchestrator:
         self.flat = flat if flat is not None else np.ones((1, 1))
         self.bias = bias if bias is not None else np.zeros((1, 1))
         
+        # Load Bad Pixel Mask dynamically
+        hot_pixels_path = r"S:\Jean\Interns\Vihaan\hot_pixels.fts"
+        if os.path.exists(hot_pixels_path):
+            dark_data = fits.getdata(hot_pixels_path)
+            self.bad_pixel_mask = dark_data > 700
+            print(f"Loaded Physical Bad Pixel Mask: {np.sum(self.bad_pixel_mask)} pixels flagged.")
+        else:
+            self.bad_pixel_mask = None
+            
         # Pipeline State
         self.state = "BURN_IN"
         self.burn_in_cache = []
@@ -56,15 +65,16 @@ class Orchestrator:
         """Passes a single new image through the pipeline architecture."""
         print(f"\nProcessing: {os.path.basename(filepath)}")
         
-        # 1. Load and Calibrate
         try:
             with fits.open(filepath) as hdul:
-                raw_data = hdul[0].data.astype(float)
-        except Exception:
+                raw_image = hdul[0].data
+            clean_image = calibrate_image(raw_image, self.bias, self.dark, self.flat, bad_pixel_mask=self.bad_pixel_mask)
+        except Exception as e:
             print("Failed to read FITS file. Skipping.")
             return
 
         # Resize mock calibration frames if necessary to match data
+        raw_data = raw_image
         if self.dark.shape != raw_data.shape:
             self.dark = np.zeros_like(raw_data)
             self.flat = np.ones_like(raw_data)

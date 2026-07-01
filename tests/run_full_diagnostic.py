@@ -71,7 +71,7 @@ def plot_anomaly_light_curves(photometry_engine, output_dir, frame_idx, anomalou
 def main():
     data_dir = r"S:\Jean\Interns\Vihaan\20260509"
     cal_dir = r"S:\Jean\Interns\Vihaan\calibration frames"
-    output_dir = r"S:\Jean\Interns\Vihaan\pipeline_test_output"
+    output_dir = r"S:\Jean\Interns\Vihaan\test_pipeline_2"
     
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)

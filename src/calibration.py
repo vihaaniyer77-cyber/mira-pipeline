@@ -5,7 +5,9 @@ class AlignmentError(Exception):
     """Custom exception raised when telescope slewing or poor seeing prevents image alignment."""
     pass
 
-def calibrate_image(raw_image, master_bias, master_dark, master_flat, exposure_time=1.0, dark_exposure=1.0):
+from scipy.ndimage import median_filter
+
+def calibrate_image(raw_image, master_bias, master_dark, master_flat, exposure_time=1.0, dark_exposure=1.0, bad_pixel_mask=None):
     """
     Applies standard hardware reduction equations via vectorized matrix arithmetic.
     Removes thermal noise and optical vignetting from the raw camera sensor output.
@@ -16,6 +18,7 @@ def calibrate_image(raw_image, master_bias, master_dark, master_flat, exposure_t
         master_bias: 2D numpy array for readout noise
         master_dark: 2D numpy array for thermal noise
         master_flat: 2D numpy array for optical vignetting/dust
+        bad_pixel_mask: boolean array indicating defective pixels to heal
     """
     # Subtract bias (readout noise)
     calibrated = raw_image.astype(float) - master_bias
@@ -29,6 +32,11 @@ def calibrate_image(raw_image, master_bias, master_dark, master_flat, exposure_t
     flat_safe = np.where(master_flat == 0, 1.0, master_flat)
     calibrated /= flat_safe
     
+    # Heal defective pixels using neighborhood interpolation
+    if bad_pixel_mask is not None:
+        local_median = median_filter(calibrated, size=3)
+        calibrated[bad_pixel_mask] = local_median[bad_pixel_mask]
+        
     return calibrated
 
 def align_image(target_image, reference_image):
@@ -41,7 +49,8 @@ def align_image(target_image, reference_image):
     """
     try:
         # astroalign registers target to reference using asterism matching
-        aligned_image, footprint = aa.register(target_image, reference_image)
+        # Limited to top 50 brightest stars to prevent infinite loops on 15-Megapixel images
+        aligned_image, footprint = aa.register(target_image, reference_image, max_control_points=50)
         return aligned_image
     except aa.MaxIterError:
         # This is thrown by astroalign when it cannot find matching stars.

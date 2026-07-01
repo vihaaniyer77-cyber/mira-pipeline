@@ -1,6 +1,7 @@
 import numpy as np
 import sep
 from scipy.signal import fftconvolve
+import scipy.fft
 
 def fit_optimal_kernel(target, reference, kernel_size=5):
     """
@@ -25,7 +26,8 @@ def fit_optimal_kernel(target, reference, kernel_size=5):
     y_min, x_min = half_k, half_k
     y_max, x_max = reference.shape[0] - half_k, reference.shape[1] - half_k
     
-    I_flat = target[y_min:y_max, x_min:x_max].flatten()
+    stride = 10
+    I_flat = target[y_min:y_max:stride, x_min:x_max:stride].flatten()
     
     num_pixels = I_flat.shape[0]
     M = np.zeros((num_pixels, kernel_size**2))
@@ -33,7 +35,7 @@ def fit_optimal_kernel(target, reference, kernel_size=5):
     col = 0
     for i in range(-half_k, half_k + 1):
         for j in range(-half_k, half_k + 1):
-            patch = reference[y_min+i : y_max+i, x_min+j : x_max+j]
+            patch = reference[y_min+i : y_max+i : stride, x_min+j : x_max+j : stride]
             M[:, col] = patch.flatten()
             col += 1
             
@@ -66,8 +68,9 @@ def optimal_image_subtraction(target_image, reference_image, psf_kernel=None):
         # Calculate the dynamic atmospheric blur
         psf_kernel = fit_optimal_kernel(target_image, reference_image, kernel_size=5)
         
-    # Artificially blur the reference image using Fast Fourier Transform convolution
-    convolved_ref = fftconvolve(reference_image, psf_kernel, mode='same')
+    # Artificially blur the reference image using Fast Fourier Transform convolution (Multi-Core)
+    with scipy.fft.set_workers(-1):
+        convolved_ref = fftconvolve(reference_image, psf_kernel, mode='same')
     
     # Subtract to isolate transients
     difference_image = target_image - convolved_ref
