@@ -40,7 +40,7 @@ def solve_wcs_for_image(fits_filepath):
             with fits.open(wcs_output_path) as wcs_hdul:
                 # astropy.wcs reads the header directly
                 wcs_object = WCS(wcs_hdul[0].header)
-                print(f"✅ Astrometry SUCCESS! WCS matrix locked for {os.path.basename(fits_filepath)}")
+                print(f" Astrometry SUCCESS! WCS matrix locked for {os.path.basename(fits_filepath)}")
                 
             # Clean up the output WCS file to save disk space
             os.remove(wcs_output_path)
@@ -54,7 +54,7 @@ def solve_wcs_for_image(fits_filepath):
             return wcs_object
             
         else:
-            print("⚠️ Astrometry FAILED: solve-field could not match the stars. Falling back to X/Y pixels.")
+            print(" Astrometry FAILED: solve-field could not match the stars. Falling back to X/Y pixels.")
             return None
             
     except FileNotFoundError:
@@ -63,5 +63,5 @@ def solve_wcs_for_image(fits_filepath):
         print("Falling back to raw X/Y pixel coordinates. Please install astrometry.net for RA/Dec.")
         return None
     except Exception as e:
-        print(f"⚠️ Astrometry ERROR: {e}. Falling back to raw X/Y pixel coordinates.")
+        print(f" Astrometry ERROR: {e}. Falling back to raw X/Y pixel coordinates.")
         return None
