@@ -13,14 +13,14 @@ class PhotometryEngine:
     1. Sudden Spikes (Flares, Novae) via a Rolling Z-Score.
     2. Slow Oscillations (Pulsators) via Rolling Variance.
     """
-    def __init__(self, window_size=10, z_threshold=4.0, min_std=15.0, var_threshold_multiplier=3.0):
+    def __init__(self, window_size=10, z_threshold=5.0, min_std=15.0, var_threshold_multiplier=3.0):
         self.window_size = window_size
         self.z_threshold = z_threshold
         self.min_std = min_std
         self.var_threshold_multiplier = var_threshold_multiplier
         self.light_curves = {} # source_id (index) -> list of fluxes
         
-    def perform_aperture_photometry(self, image, positions, aperture_radius=5.0):
+    def perform_aperture_photometry(self, image, positions, aperture_radius=3.0):
         """
         Uses photutils to extract rapid aperture photometry for thousands of stars simultaneously.
         
@@ -71,7 +71,7 @@ class PhotometryEngine:
                 
                 # TRIGGER 1: The Pulsator Catch (Slow Variables)
                 # We model the expected noise floor using Poisson statistics (shot noise ~ sqrt(flux))
-                expected_noise = max(np.sqrt(abs(mean_flux)), self.min_std)
+                expected_noise = max(np.sqrt(abs(mean_flux)), self.min_std, 0.02 * abs(mean_flux))
                 if raw_std_flux > expected_noise * self.var_threshold_multiplier:
                     var_alerts.append(i)
                 

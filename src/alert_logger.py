@@ -100,8 +100,13 @@ class AlertLogger:
         # Terminal bell (works universally)
         print("\a", end="")
         
-        # Mac specific loud ping (background process)
+        # Cross-platform sound notification
         try:
-            os.system('afplay /System/Library/Sounds/Glass.aiff &')
+            import platform
+            if platform.system() == "Windows":
+                import winsound
+                winsound.Beep(500, 200) # Gentle beep
+            elif platform.system() == "Darwin":
+                os.system('afplay /System/Library/Sounds/Glass.aiff &')
         except Exception:
             pass
