@@ -75,7 +75,7 @@ def generate_master_reference(burn_in_frames):
             
     if len(aligned_frames) < 3:
         # We generally want at least 3 frames for a proper median stack to reject outliers
-        pass # Depending on operational strictness, you might raise a Warning here
+       print("Building reference frame with fewere than 3 images. . . WARNING")
         
     # Stack into a 3D array (frames, y, x)
     stack = np.array(aligned_frames)
