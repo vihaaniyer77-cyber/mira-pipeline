@@ -13,7 +13,7 @@ class PhotometryEngine:
     1. Sudden Spikes (Flares, Novae) via a Rolling Z-Score.
     2. Slow Oscillations (Pulsators) via Rolling Variance.
     """
-    def __init__(self, window_size=10, z_threshold=5.0, min_std=15.0, var_threshold_multiplier=3.0):
+    def __init__(self, window_size=30, z_threshold=5.0, min_std=8.0, var_threshold_multiplier=1.2):
         self.window_size = window_size
         self.z_threshold = z_threshold
         self.min_std = min_std
@@ -31,11 +31,18 @@ class PhotometryEngine:
         Returns:
             1D numpy array of flux values, indexed to match the input positions list.
         """
+        import sep
+        
         if not positions:
             return []
             
+        # Dynamically subtract sky background
+        img_data = np.ascontiguousarray(image, dtype=np.float32)
+        bkg = sep.Background(img_data)
+        bkg_subtracted = img_data - bkg.back()
+            
         apertures = CircularAperture(positions, r=aperture_radius)
-        phot_table = aperture_photometry(image, apertures)
+        phot_table = aperture_photometry(bkg_subtracted, apertures)
         return phot_table['aperture_sum'].value
 
     def update_light_curves(self, fluxes):

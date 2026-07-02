@@ -19,7 +19,8 @@ def solve_wcs_for_image(fits_filepath):
         print(f"File not found: {fits_filepath}")
         return None
         
-    wcs_output_path = fits_filepath.replace(".fits", ".wcs")
+    base_path, _ = os.path.splitext(fits_filepath)
+    wcs_output_path = base_path + ".wcs"
     
     try:
         # Run the local solve-field command -- launches an external terminal solve-field
@@ -45,7 +46,7 @@ def solve_wcs_for_image(fits_filepath):
             
             # Astrometry.net also sometimes generates a .new and .match file. Clean those up too.
             for ext in [".new", ".match", "-indx.xyls", ".axy"]:
-                junk_file = fits_filepath.replace(".fits", ext)
+                junk_file = base_path + ext
                 if os.path.exists(junk_file):
                     os.remove(junk_file)
                     
@@ -56,10 +57,31 @@ def solve_wcs_for_image(fits_filepath):
             return None
             
     except FileNotFoundError:
-        # This triggers if "solve-field" is not installed on the system (e.g. during local tests)
-        print("Astrometry WARNING: 'solve-field' is not installed or not in PATH.")
-        print("Falling back to raw X/Y pixel coordinates. Please install astrometry.net for RA/Dec.")
-        return None
+        # solve-field is missing. Fall back to Astrometry.net Web API via astroquery
+        api_key = os.environ.get("ASTROMETRY_API_KEY")
+        if not api_key:
+            print("Astrometry WARNING: 'solve-field' is not installed and ASTROMETRY_API_KEY is not set.")
+            print("Falling back to raw X/Y pixel coordinates.")
+            return None
+            
+        print("Astrometry WARNING: 'solve-field' not found. Falling back to Cloud API (Astrometry.net)...")
+        from astroquery.astrometry_net import AstrometryNet
+        ast = AstrometryNet()
+        ast.api_key = api_key
+        
+        try:
+            # Solve using the cloud API (this might take a few minutes)
+            wcs_header = ast.solve_from_image(fits_filepath, force_image_upload=True, solve_timeout=300)
+            if wcs_header:
+                print(f" Cloud Astrometry SUCCESS! WCS matrix locked for {os.path.basename(fits_filepath)}")
+                return WCS(wcs_header)
+            else:
+                print(" Cloud Astrometry FAILED: Server could not match the stars.")
+                return None
+        except Exception as api_e:
+            print(f" Cloud Astrometry ERROR: {api_e}. Falling back to raw X/Y.")
+            return None
+            
     except Exception as e:
         print(f" Astrometry ERROR: {e}. Falling back to raw X/Y pixel coordinates.")
         return None

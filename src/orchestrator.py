@@ -19,12 +19,11 @@ class Orchestrator:
     as an autonomous daemon. It continuously polls a spool folder for new FITS images,
     pushes them through the 6 modules, and gracefully handles telescope slewing.
     """
-    def __init__(self, spool_directory="camera_spool", dark=None, flat=None, bias=None):
+    def __init__(self, spool_directory="camera_spool", flat=None, bias=None):
         self.spool_directory = spool_directory
         self.processed_files = set()
         
         # Hardware calibration masters (Mocked as 0/1 for fallback)
-        self.dark = dark if dark is not None else np.zeros((1, 1))
         self.flat = flat if flat is not None else np.ones((1, 1))
         self.bias = bias if bias is not None else np.zeros((1, 1))
         
@@ -68,19 +67,18 @@ class Orchestrator:
         try:
             with fits.open(filepath) as hdul:
                 raw_image = hdul[0].data
-            clean_image = calibrate_image(raw_image, self.bias, self.dark, self.flat, bad_pixel_mask=self.bad_pixel_mask)
+            clean_image = calibrate_image(raw_image, self.bias, self.flat, bad_pixel_mask=self.bad_pixel_mask)
         except Exception as e:
             print("Failed to read FITS file. Skipping.")
             return
 
         # Resize mock calibration frames if necessary to match data
         raw_data = raw_image
-        if self.dark.shape != raw_data.shape:
-            self.dark = np.zeros_like(raw_data)
+        if self.flat.shape != raw_data.shape:
             self.flat = np.ones_like(raw_data)
             self.bias = np.zeros_like(raw_data)
             
-        clean_image = calibrate_image(raw_data, self.bias, self.dark, self.flat)
+        clean_image = calibrate_image(raw_data, self.bias, self.flat)
 
         # ---------------------------------------------------------
         # PHASE 1: BURN-IN
@@ -148,15 +146,15 @@ class Orchestrator:
         # ---------------------------------------------------------
         # PHASE 3: TEMPORAL VETTING & LOGGING
         # ---------------------------------------------------------
-        # To track objects temporally, we use their rounded integer X,Y coordinates as their "ID"
-        coord_ids = [(int(round(x)), int(round(y))) for x, y, _ in current_transient_candidates]
+        # To track objects temporally, we pass their raw float X,Y coordinates
+        coord_ids = [(float(x), float(y)) for x, y, _ in current_transient_candidates]
         
         survivors = self.temporal_verifier.verify(coord_ids)
         
         for survivor_id in survivors:
             # Find the original candidate data to pass to the logger
             for x, y, engine in current_transient_candidates:
-                if (int(round(x)), int(round(y))) == survivor_id:
+                if (float(x), float(y)) == survivor_id:
                     self.alert_logger.log_alert(engine, x, y, aligned_image, wcs=self.current_wcs)
                     break # Logged
 

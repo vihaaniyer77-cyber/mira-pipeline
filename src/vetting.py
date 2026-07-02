@@ -1,6 +1,6 @@
 import numpy as np
 
-def saturation_vetting(x, y, raw_image, saturation_level=66000.0, search_radius=2):
+def saturation_vetting(x, y, raw_image, saturation_level=60000.0, search_radius=2):
     """
     The Bouncer (Saturation).
     Engine A finds transients by subtracting images. If a bright star in the raw 
@@ -34,7 +34,7 @@ def saturation_vetting(x, y, raw_image, saturation_level=66000.0, search_radius=
         
     return True # Safe
 
-def spatial_profile_vetting(extracted_object, min_fwhm=1.5, max_fwhm=8.0, max_ellipticity=0.4, min_pixels=4):
+def spatial_profile_vetting(extracted_object, min_fwhm=2.0, max_fwhm=8.0, max_ellipticity=0.4, min_pixels=4):
     """
     The Bouncer (Spatial). 
     Analyzes the geometric shape of an alert from Engine A. 
@@ -82,35 +82,63 @@ class TemporalVerifier:
     Enforces a strict 'persistence' rule. True stellar transients do not move, 
     but slow satellites or lingering sensor artifacts might survive spatial vetting.
     
-    This class tracks the (X, Y) pixel index of transients and requires them to 
-    appear in the exact same spot for N consecutive frames before authorizing an alert.
+    This class tracks the (X, Y) pixel coordinates of transients and requires them to 
+    appear in the same spot (within a tolerance radius) for N consecutive frames.
     """
-    def __init__(self, required_consecutive=3):
+    def __init__(self, required_consecutive=3, tolerance=2.0):
         self.required = required_consecutive
-        self.history = {} # obj_id (e.g. X,Y coordinate tuple) -> consecutive count
+        self.tolerance = tolerance
+        self.history = {} # obj_id -> {'count': int, 'last_pos': (x, y)}
+        self.next_id = 0
         
-    def verify(self, current_detections):
+    def verify(self, current_detections_xy):
         """
         Updates the temporal history of all currently detected objects.
         
         Args:
-            current_detections: list of object IDs (or coordinate tuples) in the current frame.
+            current_detections_xy: list of (x, y) float tuples in the current frame.
             
         Returns:
-            valid_targets: A list of objects that have met the consecutive frame requirement.
+            valid_targets: A list of (x, y) tuples from current_detections_xy that 
+                           have met the consecutive frame requirement.
         """
         valid_targets = []
+        matched_ids = set()
         
-        # Increment the count for objects seen in this frame
-        for obj_id in current_detections:
-            self.history[obj_id] = self.history.get(obj_id, 0) + 1
-            if self.history[obj_id] >= self.required:
-                valid_targets.append(obj_id)
+        # Link current detections to history using nearest neighbor within tolerance
+        for cx, cy in current_detections_xy:
+            best_match_id = None
+            best_dist = float('inf')
+            
+            for obj_id, data in self.history.items():
+                if obj_id in matched_ids:
+                    continue # One-to-one mapping
+                    
+                hx, hy = data['last_pos']
+                dist = np.sqrt((cx - hx)**2 + (cy - hy)**2)
                 
-        # Instantly reset the count for any object that disappeared
+                if dist < self.tolerance and dist < best_dist:
+                    best_match_id = obj_id
+                    best_dist = dist
+                    
+            if best_match_id is not None:
+                # Update existing track
+                self.history[best_match_id]['count'] += 1
+                self.history[best_match_id]['last_pos'] = (cx, cy)
+                matched_ids.add(best_match_id)
+                
+                if self.history[best_match_id]['count'] >= self.required:
+                    valid_targets.append((cx, cy))
+            else:
+                # Create new track
+                self.history[self.next_id] = {'count': 1, 'last_pos': (cx, cy)}
+                matched_ids.add(self.next_id)
+                self.next_id += 1
+                
+        # Instantly reset count for objects that disappeared
         # MEMORY LEAK PATCH: Delete the key entirely so the dictionary doesn't bloat infinitely.
         for obj_id in list(self.history.keys()):
-            if obj_id not in current_detections:
+            if obj_id not in matched_ids:
                 del self.history[obj_id]
                 
         return valid_targets

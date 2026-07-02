@@ -7,7 +7,7 @@ class AlignmentError(Exception):
 
 from scipy.ndimage import median_filter
 
-def calibrate_image(raw_image, master_bias, master_dark, master_flat, exposure_time=1.0, dark_exposure=1.0, bad_pixel_mask=None):
+def calibrate_image(raw_image, master_bias, master_flat, bad_pixel_mask=None):
     """
     Applies standard hardware reduction equations via vectorized matrix arithmetic.
     Removes thermal noise and optical vignetting from the raw camera sensor output.
@@ -16,16 +16,13 @@ def calibrate_image(raw_image, master_bias, master_dark, master_flat, exposure_t
     Args:
         raw_image: 2D numpy array directly from the camera
         master_bias: 2D numpy array for readout noise
-        master_dark: 2D numpy array for thermal noise
         master_flat: 2D numpy array for optical vignetting/dust
         bad_pixel_mask: boolean array indicating defective pixels to heal
     """
     # Subtract bias (readout noise)
     calibrated = raw_image.astype(float) - master_bias
     
-    # Subtract scaled dark (thermal noise), this will be analyzed further, with specifics on whether this is actually needed
-    dark_scaled = master_dark * (exposure_time / dark_exposure)
-    calibrated -= dark_scaled
+
     
     # Divide by flat (vignetting and dust)
     # Avoid division by zero by replacing 0s with 1s in the denominator
