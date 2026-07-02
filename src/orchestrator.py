@@ -31,8 +31,14 @@ class Orchestrator:
         hot_pixels_path = r"S:\Jean\Interns\Vihaan\hot_pixels.fts"
         if os.path.exists(hot_pixels_path):
             dark_data = fits.getdata(hot_pixels_path)
-            self.bad_pixel_mask = dark_data > 700
-            print(f"Loaded Physical Bad Pixel Mask: {np.sum(self.bad_pixel_mask)} pixels flagged.")
+            # Calculate the sensor's mathematical noise floor dynamically
+            mean_val = np.mean(dark_data)
+            std_val = np.std(dark_data)
+            threshold = mean_val + (3 * std_val)
+            
+            # Mask anything > 3 standard deviations above the mean dark current
+            self.bad_pixel_mask = dark_data > threshold
+            print(f"Loaded Physical Bad Pixel Mask: {np.sum(self.bad_pixel_mask)} pixels flagged (>3 sigma).")
         else:
             self.bad_pixel_mask = None
             
