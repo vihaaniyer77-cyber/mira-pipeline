@@ -9,6 +9,7 @@ The "brain" of the daemon. It loops continuously, watching the camera spool dire
 
 ### 2. `calibration.py`
 Handles basic image processing. It aligns every incoming target image to the dynamic master reference image using `astroalign`. If the telescope has slewed, `astroalign` fails, and this module gracefully raises an `AlignmentError` to notify the orchestrator.
+*(Note: Hot pixel mask perfection is the final module currently pending completion to fully finish the pipeline.)*
 
 ### 3. `starfinder.py`
 The autonomous mapping engine. Because the pipeline operates without Internet or WCS coordinates, this module uses `DAOStarFinder` to dynamically locate the (X, Y) pixel centroids of all stars in the master reference frame. It enforces a `max_stars` cap (CPU protection) and a `saturation_level` mask (Photometry protection).
@@ -29,7 +30,7 @@ The ultimate defense against false positives.
 - **Temporal Bouncer:** Forces Engine A transients and Engine B variables to persist for 3 consecutive frames before allowing an alert to be logged.
 
 ### 7. `astrometry_solver.py`
-The WCS Generation engine. Since the pipeline operates without internet, this module uses Python's `subprocess` to trigger a local installation of `astrometry.net` (`solve-field`). When the telescope settles on a new star field during Burn-In, it autonomously calculates the exact World Coordinate System (WCS) matrix so the pipeline knows precisely where it is pointing.
+The WCS Generation engine. Since the pipeline primarily operates without internet, this module uses Python's `subprocess` to trigger a local installation of `astrometry.net` (`solve-field`). If `solve-field` is not found, it intelligently falls back to the Astrometry.net Cloud API (if an internet connection and API key are available). When the telescope settles on a new star field during Burn-In, it autonomously calculates the exact World Coordinate System (WCS) matrix so the pipeline knows precisely where it is pointing.
 
 ### 8. `alert_logger.py`
 The output engine and Real-Time Alarm. When a transient survives all vetting, this module:
@@ -41,6 +42,10 @@ The output engine and Real-Time Alarm. When a transient survives all vetting, th
 ## The Test Suite
 - `test_pipeline.py`: The live-data validation script. It emulates the camera spool loop by feeding real `.fit` files with delays, applying master calibration frames, mapping light curves of background stars, and outputting matplotlib visual proofs of anomalies.
 - `test_integration.py`: A massive 11-frame mock camera simulation that verifies all 7 modules work together, generating master references, catching injected flares, verifying injected supernovae, and gracefully rebooting during telescope slews.
+- `test_full_pipeline_simulation.py`: The ultimate 100-frame time-domain stress test featuring 1,500 simulated variables (flares, pulsators, flat stars) designed to push Engine B and the Vetting modules to their mathematical SNR detection limits and verify autonomous slew recovery.
+- `test_astrometry.py`: Validates the `solve-field` local solver and Astrometry Cloud API fallback for WCS coordinate generation.
+- `test_engine_b.py`: Validates Photometry Engine B against background subtraction and Poisson noise floor thresholds.
+- `test_vetting_injection.py`: Isolated simulation test injecting false cosmic rays, saturation bleeding, and transient spikes directly into the Bouncer logic.
 - `test_saturation.py`: Verifies that the spatial masking successfully rejects saturated targets.
 - `test_stress.py`: An extreme numerical stress test that pushes the CPU, RAM, and Disk I/O limits of the pipeline via Crowded Field, Long Shift, Massive Outbreak, and Thick Cloud simulations. 
 - `test_subtraction.py`: Verifies the Alard-Lupton optimal kernel math.
