@@ -75,7 +75,7 @@ class Orchestrator:
                 raw_image = hdul[0].data
             clean_image = calibrate_image(raw_image, self.bias, self.flat, bad_pixel_mask=self.bad_pixel_mask)
         except Exception as e:
-            print("Failed to read FITS file. Skipping.")
+            print(f"Failed to read FITS file. Skipping. Error: {e}")
             return
 
         # Resize mock calibration frames if necessary to match data
@@ -84,7 +84,7 @@ class Orchestrator:
             self.flat = np.ones_like(raw_data)
             self.bias = np.zeros_like(raw_data)
             
-        clean_image = calibrate_image(raw_data, self.bias, self.flat)
+        clean_image = calibrate_image(raw_data, self.bias, self.flat, bad_pixel_mask=self.bad_pixel_mask)
 
         # ---------------------------------------------------------
         # PHASE 1: BURN-IN
@@ -142,7 +142,6 @@ class Orchestrator:
         # -- ENGINE A (Optimal Image Subtraction) --
         diff_image = optimal_image_subtraction(aligned_image, self.reference_image)
         new_objects = extract_sources_from_difference(diff_image)
-        
         for obj in new_objects:
             if spatial_profile_vetting(obj):
                 # Saturation Check: Ensure this isn't a blooming artifact from a bright star

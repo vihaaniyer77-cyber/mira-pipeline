@@ -39,13 +39,25 @@ def fit_optimal_kernel(target, reference, kernel_size=5):
             M[:, col] = patch.flatten()
             col += 1
             
+    # --- SIGMA-CLIPPING: Exclude transient pixels from the kernel solve ---
+    # We use the Median Absolute Deviation (MAD) as a robust noise estimator,
+    # then reject any pixel row that deviates more than 5-sigma from the median.
+    median_val = np.median(I_flat)
+    mad = np.median(np.abs(I_flat - median_val))
+    robust_std = 1.4826 * mad  # MAD-to-sigma conversion for Gaussian noise
+    if robust_std > 0:
+        good_mask = np.abs(I_flat - median_val) < 5.0 * robust_std
+        # Only clip if we keep enough rows to solve the linear system
+        if good_mask.sum() >= kernel_size ** 2:
+            I_flat = I_flat[good_mask]
+            M = M[good_mask, :]
+
     # Ridge penalty injected into the diagonal to prevent matrix singularity
     # (Ensures stability even if parts of the image are perfectly black)
     ridge = 1e-4 * np.eye(kernel_size**2)
-    MtM = M.T @ M + ridge
-    MtI = M.T @ I_flat
     
-    k_flat = np.linalg.solve(MtM, MtI)
+    # Solve the linear system using the pseudo-inverse
+    k_flat = np.linalg.solve(M.T @ M + ridge, M.T @ I_flat)
     K = k_flat.reshape((kernel_size, kernel_size))
     
     return K

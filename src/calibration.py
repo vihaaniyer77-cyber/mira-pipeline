@@ -21,8 +21,11 @@ def calibrate_image(raw_image, master_bias, master_flat, bad_pixel_mask=None):
     
     # Heal defective pixels using neighborhood interpolation
     if bad_pixel_mask is not None:
-        local_median = median_filter(calibrated, size=3)
-        calibrated[bad_pixel_mask] = local_median[bad_pixel_mask]
+        if bad_pixel_mask.shape != calibrated.shape:
+            print("Warning: bad_pixel_mask shape does not match image shape. Skipping mask.")
+        else:
+            local_median = median_filter(calibrated, size=3)
+            calibrated[bad_pixel_mask] = local_median[bad_pixel_mask]
         
     return calibrated
 

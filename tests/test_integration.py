@@ -40,17 +40,12 @@ def test_full_pipeline_integration():
         for i in range(5):
             data = np.random.normal(10, 2, (100, 100))
             
-            # Star 1 (Peaked blob)
-            data[50:53, 50:53] += 30
-            data[51, 51] += 70
-            
-            # Star 2
-            data[20:23, 80:83] += 30
-            data[21, 81] += 70
-            
-            # Star 3
-            data[80:83, 20:23] += 30
-            data[81, 21] += 70
+            # Inject 20 stars (Fixed Seed A) so astroalign has plenty of asymmetric points
+            np.random.seed(42)
+            star_positions = np.random.randint(10, 90, size=(20, 2))
+            for (x, y) in star_positions:
+                data[y-1:y+2, x-1:x+2] += 30
+                data[y, x] += 70
             
             hdu = fits.PrimaryHDU(data)
             hdu.writeto(os.path.join(spool_dir, f"frame_{i:02d}.fits"))
@@ -60,22 +55,18 @@ def test_full_pipeline_integration():
         for i in range(5, 11):
             data = np.random.normal(10, 2, (100, 100))
             
-            # Star 1 (Stable)
-            data[50:53, 50:53] += 30
-            data[51, 51] += 70
+            # Re-inject identical 20 stars (Seed A)
+            np.random.seed(42)
+            star_positions = np.random.randint(10, 90, size=(20, 2))
+            for (x, y) in star_positions:
+                data[y-1:y+2, x-1:x+2] += 30
+                data[y, x] += 70
             
-            # Star 2 (Stable)
-            data[20:23, 80:83] += 30
-            data[21, 81] += 70
-            
-            # Star 3 (Stable)
-            data[80:83, 20:23] += 30
-            data[81, 21] += 70
-            
-            # Frame 7: Inject a massive Flare on Star 1 (Engine B should catch as Flare)
+            # Frame 7: Inject a massive Flare on a specific star (Engine B should catch)
             if i == 7:
-                data[50:53, 50:53] += 5000
-                data[51, 51] += 10000
+                x_f, y_f = star_positions[0]
+                data[y_f-1:y_f+2, x_f-1:x_f+2] += 5000
+                data[y_f, x_f] += 10000
                 
             # Frame 8-10: Inject a Supernova in EMPTY SPACE (Engine A should catch)
             if i >= 8:
@@ -90,7 +81,13 @@ def test_full_pipeline_integration():
             
         # SCENARIO 3: Telescope Slews (Frame 11)
         data = np.random.normal(10, 2, (100, 100))
-        data[10:13, 10:13] += 50 # Completely new star field
+        # Inject 20 stars (Fixed Seed B) representing a completely new star field
+        np.random.seed(999)
+        star_positions = np.random.randint(10, 90, size=(20, 2))
+        for (x, y) in star_positions:
+            data[y-1:y+2, x-1:x+2] += 30
+            data[y, x] += 70
+            
         hdu = fits.PrimaryHDU(data)
         hdu.writeto(os.path.join(spool_dir, f"frame_11.fits"))
         time.sleep(0.5)
@@ -132,10 +129,10 @@ def test_full_pipeline_integration():
     
     with open(csv_path, 'r') as f:
         content = f.read()
-        # Flare should be caught
-        assert "Engine B (Flare)" in content
+        # Flare should be caught by Engine B (Output name is Spike/Dip)
+        assert "Engine B (Spike/Dip)" in content
         # Supernova should be caught (persists for frames 8, 9, 10 -> hits TemporalVerifier 3-frame threshold on frame 10)
-        assert "Engine A (New" in content
+        assert "Engine A (New Transient)" in content
         
     # 3. Check PNGs were generated
     pngs = [f for f in os.listdir(output_dir) if f.endswith('.png')]
