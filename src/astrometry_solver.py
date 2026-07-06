@@ -4,17 +4,7 @@ from astropy.wcs import WCS
 from astropy.io import fits
 
 def solve_wcs_for_image(fits_filepath):
-    """
-    Attempts to solve the World Coordinate System (WCS) for a given FITS image using
-    a local installation of astrometry.net (solve-field).
     
-    
-    Args:
-        fits_filepath (str): Absolute path to the raw camera FITS file.
-        
-    Returns:
-        wcs_object (astropy.wcs.WCS): The calculated WCS object, or None if it fails.
-    """
     if not os.path.exists(fits_filepath):
         print(f"File not found: {fits_filepath}")
         return None
