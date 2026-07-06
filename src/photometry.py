@@ -2,17 +2,7 @@ import numpy as np
 from photutils.aperture import CircularAperture, aperture_photometry
 
 class PhotometryEngine:
-    """
-    Engine B: The Forced Photometry Engine.
     
-    This engine acts as a massive parallel tracking system. It receives a dynamic list 
-    of thousands of (X, Y) pixel coordinates from the StarFinder module. It places a 
-    circular aperture over every star and maintains a rolling history of their brightness.
-    
-    It actively hunts for two specific types of anomalies:
-    1. Sudden Spikes (Flares, Novae) via a Rolling Z-Score.
-    2. Slow Oscillations (Pulsators) via Rolling Variance.
-    """
     def __init__(self, window_size=30, z_threshold=5.0, min_std=8.0, var_threshold_multiplier=1.2):
         self.window_size = window_size
         self.z_threshold = z_threshold
