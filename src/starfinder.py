@@ -4,27 +4,11 @@ from photutils.detection import DAOStarFinder
 from scipy.spatial import cKDTree
 
 def find_stars_autonomously(image, fwhm_estimate=3.0, threshold_sigma=5.0, max_stars=2000, saturation_level=55000.0, min_separation=6.0):
-    """
-    Scans an image to dynamically locate the (X, Y) pixel coordinates of all 
-    stars in the field of view, excluding those that are too crowded.
-    Args:
-        image: 2D numpy array (typically the pristine Dynamic Reference image)
-        fwhm_estimate: The estimated Full Width at Half Maximum of stars in pixels.
-        threshold_sigma: How many standard deviations above the background noise 
-                         a source must be to be considered a star.
-        max_stars: The maximum number of stars to track. CPU OVERLOAD PATCH.
-        saturation_level: ADU threshold to ignore flat-topped/bleeding stars.
-        min_separation: The minimum distance in pixels allowed between two stars.
-                         If closer than this, BOTH stars are rejected to prevent 
-                         crowding contamination.
-                         
-    Returns:
-        List of (x, y) tuples representing the exact centroids of the found stars.
-    """
-    # 1. Estimate the background and background noise
+ 
+    # Estimate the background and background noise
     mean, median, std = sigma_clipped_stats(image, sigma=3.0)
     
-    # 2. Initialize the DAOStarFinder algorithm
+    # https://photutils.readthedocs.io/en/stable/user_guide/index.html?__cf_chl_f_tk=nCEvkYnwI47vL8uPS2VDGbWkpUYCSbQ13nkrgW8C240-1783358576-1.0.1.1-Ioz4b5Z.o94sDQmV5ijRN.kaBAfrbOX_MRopAMHCuKU
     daofind = DAOStarFinder(fwhm=fwhm_estimate, threshold=threshold_sigma * std, peakmax=saturation_level, sharplo=0.2, sharphi=0.8)
     
     # 3. Execute the search
@@ -36,16 +20,15 @@ def find_stars_autonomously(image, fwhm_estimate=3.0, threshold_sigma=5.0, max_s
     # Sort by brightest stars first
     sources.sort('peak')
     sources.reverse()
-    
-    # 4. Extract raw coordinates
+
     raw_coords = np.array([(row['xcentroid'], row['ycentroid']) for row in sources])
     
-    # 5. KDTree Distance Filter (Crowding Contamination)
+    #  KDTree Distance Filter (Crowding Contamination)
     # Identify pairs of stars that are closer than min_separation
     tree = cKDTree(raw_coords)
     pairs = tree.query_pairs(min_separation)
     
-    # Build a set of all indices that are part of ANY close pair (reject both)
+
     crowded_indices = set()
     for i, j in pairs:
         crowded_indices.add(i)
