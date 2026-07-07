@@ -26,7 +26,7 @@ class PhotometryEngine:
         if not positions:
             return []
             
-        # Dynamically subtract sky background
+        #  subtract sky background, ask Dr. Perkins if necessary?
         img_data = np.ascontiguousarray(image, dtype=np.float32)
         bkg = sep.Background(img_data)
         bkg_subtracted = img_data - bkg.back()
