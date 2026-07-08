@@ -1,24 +1,7 @@
 import numpy as np
 
 def saturation_vetting(x, y, raw_image, saturation_level=60000.0, search_radius=2):
-    """
-    The Bouncer (Saturation).
-    Engine A finds transients by subtracting images. If a bright star in the raw 
-    image hits the physical CCD limit (e.g., 65,535), it bleeds into adjacent pixels. 
-    Subtraction math fails catastrophically on these bleeding columns, creating 
-    massive false positives that look like new stars.
     
-    This checks if the proposed transient is on or near a saturated pixel in the RAW image.
-    
-    Args:
-        x, y: Pixel coordinates of the proposed transient.
-        raw_image: The aligned 2D camera frame BEFORE subtraction.
-        saturation_level: The ADU threshold considered dangerous.
-        search_radius: How many pixels around the center to check for saturation bleeding.
-        
-    Returns:
-        Boolean: True if safe (not saturated). False if it's a bleeding artifact.
-    """
     x, y = int(round(x)), int(round(y))
     
     # Define bounding box, ensuring we don't index outside the image
