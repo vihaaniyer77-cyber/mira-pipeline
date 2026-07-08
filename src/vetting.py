@@ -18,20 +18,7 @@ def saturation_vetting(x, y, raw_image, saturation_level=60000.0, search_radius=
     return True # Safe
 
 def spatial_profile_vetting(extracted_object, min_fwhm=2.0, max_fwhm=8.0, max_ellipticity=0.4, min_pixels=4):
-    """
-    The Bouncer (Spatial). 
-    Analyzes the geometric shape of an alert from Engine A. 
-    
-    Because we operate entirely in a pixel coordinate space without WCS, we rely 
-    heavily on morphology to distinguish true stars from sensor artifacts.
-    
-    Args:
-        extracted_object: dict-like row output from the sep extraction library.
-    
-    Returns:
-        Boolean: True if the object's geometry resembles a real stellar transient.
-                 False if it is a cosmic ray, hot pixel, or satellite streak.
-    """
+   
     a = extracted_object['a']
     b = extracted_object['b']
     
@@ -60,14 +47,7 @@ def spatial_profile_vetting(extracted_object, min_fwhm=2.0, max_fwhm=8.0, max_el
     return is_valid_fwhm and is_valid_shape
 
 class TemporalVerifier:
-    """
-    The Bouncer (Temporal).
-    Enforces a strict 'persistence' rule. True stellar transients do not move, 
-    but slow satellites or lingering sensor artifacts might survive spatial vetting.
-    
-    This class tracks the (X, Y) pixel coordinates of transients and requires them to 
-    appear in the same spot (within a tolerance radius) for N consecutive frames.
-    """
+   
     def __init__(self, required_consecutive=3, tolerance=2.0):
         self.required = required_consecutive
         self.tolerance = tolerance
@@ -75,16 +55,7 @@ class TemporalVerifier:
         self.next_id = 0
         
     def verify(self, current_detections_xy):
-        """
-        Updates the temporal history of all currently detected objects.
         
-        Args:
-            current_detections_xy: list of (x, y) float tuples in the current frame.
-            
-        Returns:
-            valid_targets: A list of (x, y) tuples from current_detections_xy that 
-                           have met the consecutive frame requirement.
-        """
         valid_targets = []
         matched_ids = set()
         
