@@ -1,4 +1,4 @@
-# MIRA Autonomous Piggyback Pipeline
+# MIRA Autonomous Pipeline
 
 **MIRA (Monterey Institute for Research in Astronomy)  Pipeline** is a fully autonomous, blind-survey transient detection system designed to operate on a secondary, wide-field telescope (e.g., a 14-inch scope) that is physically mounted on a primary telescope (e.g., a 36-inch scope).
 
