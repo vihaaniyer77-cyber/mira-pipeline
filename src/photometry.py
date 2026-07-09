@@ -3,11 +3,11 @@ from photutils.aperture import CircularAperture, aperture_photometry
 
 class PhotometryEngine:
     
-    def __init__(self, window_size=30, z_threshold=5.0, min_std=8.0, var_threshold_multiplier=1.2):
-        self.window_size = window_size #Talk to Jean
-        self.z_threshold = z_threshold #Talk to jean
-        self.min_std = min_std # Talk to jean
-        self.var_threshold_multiplier = var_threshold_multiplier #Talk to jean
+    def __init__(self, window_size=30, z_threshold=17.0, min_std=25.0, var_threshold_multiplier=3.0):
+        self.window_size = window_size
+        self.z_threshold = z_threshold
+        self.min_std = min_std
+        self.var_threshold_multiplier = var_threshold_multiplier
         self.light_curves = {} # source_id (index) -> list of fluxes
         
     def perform_aperture_photometry(self, image, positions, aperture_radius=3.0):
@@ -26,7 +26,7 @@ class PhotometryEngine:
         if not positions:
             return []
             
-        #  subtract sky background, ask Dr. Perkins if necessary?
+        # Dynamically subtract sky background
         img_data = np.ascontiguousarray(image, dtype=np.float32)
         bkg = sep.Background(img_data)
         bkg_subtracted = img_data - bkg.back()
@@ -47,7 +47,7 @@ class PhotometryEngine:
             z_scores: array of current Z-scores for all stars.
             stds: array of current rolling standard deviations for all stars.
             z_alerts: list of source_ids that triggered a Flare alert (Z-score > threshold).
-            var_alerts: list of source_ids that triggered a Pulsator alert (Variance > threshold).
+            var_alerts: list of source_ids that triggered a Variable alert (Variance > threshold).
         """
         z_scores = []
         stds = []
@@ -66,7 +66,7 @@ class PhotometryEngine:
                 raw_std_flux = np.std(history)
                 stds.append(raw_std_flux)
                 
-                # TRIGGER 1: The Pulsator Catch (Slow Variables)
+                # TRIGGER 1: The Variable Catch (General Variance)
                 # We model the expected noise floor using Poisson statistics (shot noise ~ sqrt(flux))
                 expected_noise = max(np.sqrt(abs(mean_flux)), self.min_std, 0.02 * abs(mean_flux))
                 if raw_std_flux > expected_noise * self.var_threshold_multiplier:
