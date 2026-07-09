@@ -9,7 +9,7 @@ def find_stars_autonomously(image, fwhm_estimate=3.0, threshold_sigma=5.0, max_s
     mean, median, std = sigma_clipped_stats(image, sigma=3.0)
     
     # https://photutils.readthedocs.io/en/stable/user_guide/index.html?__cf_chl_f_tk=nCEvkYnwI47vL8uPS2VDGbWkpUYCSbQ13nkrgW8C240-1783358576-1.0.1.1-Ioz4b5Z.o94sDQmV5ijRN.kaBAfrbOX_MRopAMHCuKU
-    daofind = DAOStarFinder(fwhm=fwhm_estimate, threshold=threshold_sigma * std, peakmax=saturation_level, sharplo=0.2, sharphi=0.8)
+    daofind = DAOStarFinder(fwhm=fwhm_estimate, threshold=threshold_sigma * std, peakmax=saturation_level, sharplo=0.4, sharphi=0.6)
     
     # 3. Execute the search
     sources = daofind(image - median)
@@ -18,7 +18,7 @@ def find_stars_autonomously(image, fwhm_estimate=3.0, threshold_sigma=5.0, max_s
         return []
         
     # Sort by brightest stars first
-    sources.sort('peak')
+    sources.sort('flux')
     sources.reverse()
 
     raw_coords = np.array([(row['xcentroid'], row['ycentroid']) for row in sources])
