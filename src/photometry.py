@@ -4,10 +4,10 @@ from photutils.aperture import CircularAperture, aperture_photometry
 class PhotometryEngine:
     
     def __init__(self, window_size=30, z_threshold=5.0, min_std=8.0, var_threshold_multiplier=1.2):
-        self.window_size = window_size
-        self.z_threshold = z_threshold
-        self.min_std = min_std
-        self.var_threshold_multiplier = var_threshold_multiplier
+        self.window_size = window_size #Talk to Jean
+        self.z_threshold = z_threshold #Talk to jean
+        self.min_std = min_std # Talk to jean
+        self.var_threshold_multiplier = var_threshold_multiplier #Talk to jean
         self.light_curves = {} # source_id (index) -> list of fluxes
         
     def perform_aperture_photometry(self, image, positions, aperture_radius=3.0):
