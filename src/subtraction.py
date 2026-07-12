@@ -95,7 +95,7 @@ def optimal_image_subtraction(target_image, reference_image, psf_kernel=None):
     
     return difference_image
 
-def extract_sources_from_difference(difference_image, background_sigma=20.0):
+def extract_sources_from_difference(difference_image, background_sigma=20.0): #should plan to change to 5-10 sigma
     """
     Scans the subtracted difference image to find statistically significant clusters
     of glowing pixels that survived the subtraction process.
