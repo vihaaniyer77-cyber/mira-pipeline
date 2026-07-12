@@ -1,6 +1,6 @@
 import numpy as np
 
-def saturation_vetting(x, y, raw_image, saturation_level=60000.0, search_radius=2):
+def saturation_vetting(x, y, raw_image, saturation_level=55000.0, search_radius=2):
     
     x, y = int(round(x)), int(round(y))
     
@@ -51,7 +51,7 @@ class TemporalVerifier:
     def __init__(self, required_consecutive=3, tolerance=2.0):
         self.required = required_consecutive
         self.tolerance = tolerance
-        self.history = {} # obj_id -> {'count': int, 'last_pos': (x, y)}
+        self.history = {} # obj_id -> {'count': int, 'last_pos': (x, y), 'alerted': bool, 'missed': int}
         self.next_id = 0
         
     def verify(self, current_detections_xy):
@@ -76,23 +76,34 @@ class TemporalVerifier:
                     best_dist = dist
                     
             if best_match_id is not None:
-                # Update existing track
+                # Update existing track and reset miss counter
                 self.history[best_match_id]['count'] += 1
                 self.history[best_match_id]['last_pos'] = (cx, cy)
+                self.history[best_match_id]['missed'] = 0
                 matched_ids.add(best_match_id)
                 
+                # Only fire an alert the first time a target crosses the threshold.
+                # Without this, a persistent transient (nova, slow flare) would generate
+                # a new alert PNG on every single frame indefinitely.
+                # The flag resets naturally when the object disappears (its history is deleted).
                 if self.history[best_match_id]['count'] >= self.required:
-                    valid_targets.append((cx, cy))
+                    if not self.history[best_match_id]['alerted']:
+                        valid_targets.append((cx, cy))
+                        self.history[best_match_id]['alerted'] = True
             else:
                 # Create new track
-                self.history[self.next_id] = {'count': 1, 'last_pos': (cx, cy)}
+                self.history[self.next_id] = {'count': 1, 'last_pos': (cx, cy), 'alerted': False, 'missed': 0}
                 matched_ids.add(self.next_id)
                 self.next_id += 1
                 
-        # Instantly reset count for objects that disappeared
-        # MEMORY LEAK PATCH: Delete the key entirely so the dictionary doesn't bloat infinitely.
+        # For objects not seen this frame, increment their miss counter.
+        # Allow 1 missed frame before deleting the track — a single bad frame
+        # (cloud, cosmic ray, brief seeing spike) should not reset a genuine detection.
+        # MEMORY LEAK PATCH: Delete the key entirely once miss tolerance is exceeded.
         for obj_id in list(self.history.keys()):
             if obj_id not in matched_ids:
-                del self.history[obj_id]
+                self.history[obj_id]['missed'] += 1
+                if self.history[obj_id]['missed'] > 1:
+                    del self.history[obj_id]
                 
         return valid_targets
