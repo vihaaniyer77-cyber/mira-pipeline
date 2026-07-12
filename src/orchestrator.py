@@ -151,44 +151,74 @@ class Orchestrator:
             self.burn_in_cache.append(clean_image) # Use this frame as frame 1 of new burn-in
             return
 
-        current_transient_candidates = [] # Stores (X, Y, Engine Name)
+        raw_candidates = [] # Stores dicts: x, y, engine, sig, bypass_bouncer
 
         # -- ENGINE B (Photometry) --
         fluxes = self.photometry_engine.perform_aperture_photometry(aligned_image, self.background_stars_xy)
-        _, _, z_alerts, var_alerts = self.photometry_engine.update_light_curves(fluxes)
+        z_scores, stds, z_alerts, var_alerts = self.photometry_engine.update_light_curves(fluxes)
        
         # Flares are 1-frame events. They bypass the temporal bouncer.
         for idx in z_alerts:
             x, y = self.background_stars_xy[idx]
-            self.alert_logger.log_alert("Engine B (Spike/Dip)", x, y, aligned_image, wcs=self.current_wcs)
+            sig = f"Z={z_scores[idx]:.1f}"
+            raw_candidates.append({'x': x, 'y': y, 'engine': 'Engine B (Flare)', 'sig': sig, 'bypass': True})
            
         # Pulsators are slow variables. They go to the bouncer.
         for idx in var_alerts:
             x, y = self.background_stars_xy[idx]
-            current_transient_candidates.append((x, y, "Engine B (Pulsator)"))
+            sig = f"Var={stds[idx]:.1f}"
+            raw_candidates.append({'x': x, 'y': y, 'engine': 'Engine B (Pulsator)', 'sig': sig, 'bypass': False})
 
         # -- ENGINE A (Optimal Image Subtraction) --
         diff_image = optimal_image_subtraction(aligned_image, self.reference_image)
-        new_objects = extract_sources_from_difference(diff_image)
+        new_objects, bkg_rms = extract_sources_from_difference(diff_image)
         for obj in new_objects:
             if spatial_profile_vetting(obj):
                 # Saturation Check: Ensure this isn't a blooming artifact from a bright star
                 if saturation_vetting(obj['x'], obj['y'], aligned_image):
-                    current_transient_candidates.append((obj['x'], obj['y'], "Engine A (New Transient)"))
+                    sigma = obj['peak'] / bkg_rms if bkg_rms > 0 else 0
+                    sig = f"Sigma={sigma:.1f}"
+                    raw_candidates.append({'x': obj['x'], 'y': obj['y'], 'engine': 'Engine A (New)', 'sig': sig, 'bypass': False})
+                    
+        # -- MERGE CO-DETECTED TRANSIENTS --
+        # If an object triggers BOTH Engine A and Engine B, merge them into a single alert
+        merged_candidates = []
+        for det in raw_candidates:
+            matched = False
+            for m in merged_candidates:
+                dist = np.sqrt((det['x'] - m['x'])**2 + (det['y'] - m['y'])**2)
+                if dist < 3.0: # within 3 pixels
+                    if det['engine'] not in m['engine']:
+                        m['engine'] += f" + {det['engine']}"
+                        m['sig'] += f" | {det['sig']}"
+                    m['bypass'] = m['bypass'] or det['bypass']
+                    matched = True
+                    break
+            if not matched:
+                merged_candidates.append(det)
 
         # ---------------------------------------------------------
         # PHASE 3: TEMPORAL VETTING & LOGGING
         # ---------------------------------------------------------
+        bouncer_candidates = []
+        
+        for m in merged_candidates:
+            if m['bypass']:
+                # Log immediately, bypass temporal verification
+                self.alert_logger.log_alert(m['engine'], m['x'], m['y'], aligned_image, wcs=self.current_wcs, significance=m['sig'])
+            else:
+                bouncer_candidates.append(m)
+                
         # To track objects temporally, we pass their raw float X,Y coordinates
-        coord_ids = [(float(x), float(y)) for x, y, _ in current_transient_candidates]
+        coord_ids = [(float(m['x']), float(m['y'])) for m in bouncer_candidates]
        
         survivors = self.temporal_verifier.verify(coord_ids)
        
         for survivor_id in survivors:
             # Find the original candidate data to pass to the logger
-            for x, y, engine in current_transient_candidates:
-                if (float(x), float(y)) == survivor_id:
-                    self.alert_logger.log_alert(engine, x, y, aligned_image, wcs=self.current_wcs)
+            for m in bouncer_candidates:
+                if (float(m['x']), float(m['y'])) == survivor_id:
+                    self.alert_logger.log_alert(m['engine'], m['x'], m['y'], aligned_image, wcs=self.current_wcs, significance=m['sig'])
                     break # Logged
 
     def run_watchdog(self):
