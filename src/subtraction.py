@@ -4,23 +4,7 @@ from scipy.signal import fftconvolve
 import scipy.fft
 
 def fit_optimal_kernel(target, reference, kernel_size=5):
-    """
-    Solves the Alard-Lupton optimal kernel matching equation.
-    Because atmospheric blurring ('seeing') changes constantly, we cannot simply
-    subtract two images. This function calculates a spatial convolution kernel (K) 
-    that mathematically matches the point spread function (PSF) of the reference 
-    image to the target image.
     
-    It minimizes the least-squares difference: (target - reference ⊗ K)^2
-    
-    Args:
-        target: 2D numpy array (the current camera frame)
-        reference: 2D numpy array (the dynamic burn-in reference)
-        kernel_size: Integer size of the matching kernel matrix (default 5x5)
-        
-    Returns:
-        K: The 2D convolution matrix that models the atmospheric difference.
-    """
     half_k = kernel_size // 2
     
     y_min, x_min = half_k, half_k
