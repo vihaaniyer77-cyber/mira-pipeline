@@ -24,9 +24,9 @@ class AlertLogger:
         if not os.path.exists(self.csv_path):
             with open(self.csv_path, mode='w', newline='') as file:
                 writer = csv.writer(file)
-                writer.writerow(["Timestamp", "Engine", "X_Pixel", "Y_Pixel", "RA", "Dec", "Image_File"])
+                writer.writerow(["Timestamp", "Engine", "Significance", "X_Pixel", "Y_Pixel", "RA", "Dec", "Image_File"])
 
-    def log_alert(self, engine_name, x, y, full_image, crop_size=50, wcs=None):
+    def log_alert(self, engine_name, x, y, full_image, crop_size=50, wcs=None, significance="Unknown"):
         """
         Logs a confirmed transient alert to the CSV and saves a text file.
        
@@ -36,6 +36,7 @@ class AlertLogger:
             full_image: The 2D numpy array of the current camera frame (or difference image)
             crop_size: The width/height of the PNG cutout in pixels
             wcs: Optional Astropy WCS object for sky coordinates
+            significance: String describing the trigger strength (e.g., 'Sigma=25', 'Z=17.2')
         """
         # Ensure integers for indexing
         x, y = int(round(x)), int(round(y))
@@ -59,6 +60,7 @@ class AlertLogger:
                 with open(txt_filepath, 'w') as f:
                     f.write(f"--- MIRA PIPELINE ALERT ---\n")
                     f.write(f"Type: {engine_name}\n")
+                    f.write(f"Significance: {significance}\n")
                     f.write(f"RA (deg): {ra_str}\n")
                     f.write(f"Dec (deg): {dec_str}\n")
                     f.write(f"Pixel: X:{x}, Y:{y}\n")
@@ -69,9 +71,9 @@ class AlertLogger:
         try:
             with open(self.csv_path, mode='a', newline='') as file:
                 writer = csv.writer(file)
-                writer.writerow([timestamp, engine_name, x, y, ra_str, dec_str, txt_filename])
+                writer.writerow([timestamp, engine_name, significance, x, y, ra_str, dec_str, txt_filename])
         except Exception as e:
             print(f"Warning: Failed to write to CSV database: {e}")
            
         # 6. Console Notification
-        print(f"DISCOVERY LOGGED [{engine_name}] at RA:{ra_str}, Dec:{dec_str} (X:{x}, Y:{y}). Saved to {txt_filename}")
+        print(f"DISCOVERY LOGGED [{engine_name} | {significance}] at RA:{ra_str}, Dec:{dec_str} (X:{x}, Y:{y}). Saved to {txt_filename}")
