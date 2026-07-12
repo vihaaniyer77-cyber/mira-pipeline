@@ -4,7 +4,23 @@ from scipy.signal import fftconvolve
 import scipy.fft
 
 def fit_optimal_kernel(target, reference, kernel_size=5):
+    """
+    Solves the Alard-Lupton optimal kernel matching equation.
+    Because atmospheric blurring ('seeing') changes constantly, we cannot simply
+    subtract two images. This function calculates a spatial convolution kernel (K) 
+    that mathematically matches the point spread function (PSF) of the reference 
+    image to the target image.
     
+    It minimizes the least-squares difference: (target - reference ⊗ K)^2
+    
+    Args:
+        target: 2D numpy array (the current camera frame)
+        reference: 2D numpy array (the dynamic burn-in reference)
+        kernel_size: Integer size of the matching kernel matrix (default 5x5)
+        
+    Returns:
+        K: The 2D convolution matrix that models the atmospheric difference.
+    """
     half_k = kernel_size // 2
     
     y_min, x_min = half_k, half_k
@@ -79,7 +95,7 @@ def optimal_image_subtraction(target_image, reference_image, psf_kernel=None):
     
     return difference_image
 
-def extract_sources_from_difference(difference_image, background_sigma=20.0): #should plan to change to 5-10 sigma
+def extract_sources_from_difference(difference_image, background_sigma=20.0):
     """
     Scans the subtracted difference image to find statistically significant clusters
     of glowing pixels that survived the subtraction process.
@@ -92,6 +108,7 @@ def extract_sources_from_difference(difference_image, background_sigma=20.0): #s
     Returns:
         objects: A structured numpy array of detections (includes 'x', 'y', 'a', 'b', 'flux').
                  These are the raw transient candidates sent to the Vetting Bouncer.
+        globalrms: The global background RMS noise floor (used for significance calculation).
     """
     # Cast to float64 and ensure native byte order — SEP's C backend requires
     # native-endian arrays, and FITS files are big-endian by default.
@@ -110,4 +127,4 @@ def extract_sources_from_difference(difference_image, background_sigma=20.0): #s
     # Extract contiguous blobs of pixels exceeding the threshold
     objects = sep.extract(diff_data - bkg.back(), thresh)
     
-    return objects
+    return objects, bkg.globalrms
