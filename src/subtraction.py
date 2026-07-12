@@ -60,6 +60,12 @@ def fit_optimal_kernel(target, reference, kernel_size=5):
     k_flat = np.linalg.solve(M.T @ M + ridge, M.T @ I_flat)
     K = k_flat.reshape((kernel_size, kernel_size))
     
+    # Normalize the kernel to sum to 1 to preserve flux in the convolved reference.
+    # An un-normalized kernel would globally scale the reference, leaving a systematic
+    # DC offset across the entire difference image instead of pure noise + transients.
+    if K.sum() != 0:
+        K /= K.sum()
+    
     return K
 
 def optimal_image_subtraction(target_image, reference_image, psf_kernel=None):
@@ -103,13 +109,18 @@ def extract_sources_from_difference(difference_image, background_sigma=20.0):
         objects: A structured numpy array of detections (includes 'x', 'y', 'a', 'b', 'flux').
                  These are the raw transient candidates sent to the Vetting Bouncer.
     """
-    # sep requires contiguous memory in C byte order
-    diff_data = np.ascontiguousarray(difference_image, dtype=np.float32)
+    # Cast to float64 and ensure native byte order — SEP's C backend requires
+    # native-endian arrays, and FITS files are big-endian by default.
+    diff_data = np.ascontiguousarray(difference_image, dtype=np.float64)
     
     # Dynamically estimate the background RMS (noise floor) of the subtracted image
     bkg = sep.Background(diff_data)
     
-    # Calculate the extraction threshold (5-sigma by default)
+    # Calculate the extraction threshold.
+    # 20-sigma is intentionally aggressive. The primary target event class is supernovae,
+    # which are extremely luminous and produce screaming detections on a difference image.
+    # A high threshold prevents subtraction residuals near bright stars from flooding the
+    # vetting pipeline with false positives, especially since there is no downstream ML classifier.
     thresh = background_sigma * bkg.globalrms
     
     # Extract contiguous blobs of pixels exceeding the threshold
