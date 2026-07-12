@@ -1,0 +1,15 @@
+# MIRA Pipeline Requirements
+
+# Core Scientific Compute
+numpy>=1.22.0
+scipy>=1.8.0
+
+# Astronomy Data & WCS
+astropy>=5.0.0
+
+# Image Subtraction & Photometry
+sep>=1.2.1
+photutils>=1.4.0
+
+# Astrometry & Alignment
+astroalign>=2.3.1
