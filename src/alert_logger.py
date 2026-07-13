@@ -4,14 +4,7 @@ import datetime
 import numpy as np
 
 class AlertLogger:
-    """
-    Because the 14-inch telescope computer is air-gapped and lacks a WCS grid,
-    this module acts as the localized 'Database and Notification System'.
-   
-    When a transient survives all vetting, this logger writes the exact pixel
-    coordinates to a CSV file and saves a text file of the event to a
-    local folder for manual morning review by the astronomer.
-    """
+  
     def __init__(self, output_dir="pipeline_discoveries"):
         self.output_dir = output_dir
         self.csv_path = os.path.join(self.output_dir, "discoveries.csv")
@@ -27,17 +20,7 @@ class AlertLogger:
                 writer.writerow(["Timestamp", "Engine", "Significance", "X_Pixel", "Y_Pixel", "RA", "Dec", "Image_File"])
 
     def log_alert(self, engine_name, x, y, full_image, crop_size=50, wcs=None, significance="Unknown"):
-        """
-        Logs a confirmed transient alert to the CSV and saves a text file.
-       
-        Args:
-            engine_name: 'Engine A (New)' or 'Engine B (Flare/Variable)'
-            x, y: The exact pixel coordinates of the transient
-            full_image: The 2D numpy array of the current camera frame (or difference image)
-            crop_size: The width/height of the PNG cutout in pixels
-            wcs: Optional Astropy WCS object for sky coordinates
-            significance: String describing the trigger strength (e.g., 'Sigma=25', 'Z=17.2')
-        """
+        
         # Ensure integers for indexing
         x, y = int(round(x)), int(round(y))
        
