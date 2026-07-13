@@ -8,5 +8,5 @@ When the primary 36-inch telescope is slewing across the sky to target variable 
 ## The Solution
 Instead of letting the 14-inch gather dust, this pipeline turns it into an autonomous transient discovery engine. The pipeline runs as a daemon, constantly reading FITS files written by the 14-inch camera, and uses advanced mathematics to hunt for Supernovae, Stellar flares, and variable stars in real-time.
 
+All notes will be stored in a dynyaic csv
 
-Whenever the pipeline detects a verified transient, it will automatically crop a sub-image, draw crosshairs over the target, and save an Alert PNG to the directory for human review.
