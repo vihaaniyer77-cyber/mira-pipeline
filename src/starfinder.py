@@ -28,10 +28,7 @@ def find_stars_autonomously(image, fwhm_estimate=3.0, threshold_sigma=5.0, max_s
     tree = cKDTree(raw_coords)
     pairs = tree.query_pairs(min_separation)
     
-    # Conservative rejection policy: discard BOTH stars in a crowded pair.
-    # With aperture_radius=3.0px and min_separation=6.0px, any pair returned here
-    # has genuinely overlapping apertures, meaning both flux measurements are
-    # contaminated. We prefer fewer clean light curves over more blended ones.
+
     crowded_indices = set()
     for i, j in pairs:
         crowded_indices.add(i)
