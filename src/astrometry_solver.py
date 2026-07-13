@@ -11,7 +11,7 @@ def solve_wcs_for_image(fits_filepath):
         
     base_path, _ = os.path.splitext(fits_filepath)
     wcs_output_path = base_path + ".wcs"
-    
+    #IMPORTANT, MAKE SURE TO DOWNLOAD THE FILES BEFOREHAND!!!!!!
     try:
         # Run the local solve-field command -- launches an external terminal solve-field
         # --overwrite: Overwrite existing .wcs files
