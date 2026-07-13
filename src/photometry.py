@@ -48,67 +48,6 @@ class PhotometryEngine:
             z_scores: array of current Z-scores for all stars.
             stds: array of current rolling standard deviations for all stars.
             z_alerts: list of source_ids that triggered a Flare alert (Z-score > threshold).
-            var_alerts: list of source_ids that triggered a Variable alert (std > threshold).
-        """
-        z_scores = []
-        stds = []
-        z_alerts = []
-        var_alerts = []
-        
-        for i, flux in enumerate(fluxes):
-            if i not in self.light_curves:
-                self.light_curves[i] = []
-            
-            # Compute rolling statistics on the historical window before appending the current flux
-            history = self.light_curves[i][-self.window_size:]
-            
-            if len(history) >= 2:
-                mean_flux = np.mean(history)
-                raw_std_flux = np.std(history)
-                stds.append(raw_std_flux)
-                
-                # TRIGGER 1: The Variable Catch (General Variance)
-                # We model the expected noise floor using Poisson statistics (shot noise ~ sqrt(flux))
-                expected_noise = max(np.sqrt(abs(mean_flux)), self.min_std, 0.02 * abs(mean_flux))
-                if raw_std_flux > expected_noise * self.var_threshold_multiplier:
-                    var_alerts.append(i)
-                
-                # Apply the dynamic noise floor to prevent dividing by an artificially small sample std
-                std_flux = max(raw_std_flux, expected_noise)
-                
-                # Guard against exact zero std with a tiny epsilon
-                z = (flux - mean_flux) / (std_flux if std_flux > 0 else 1e-10)
-            else:
-                # Not enough history to calculate statistics
-                z = 0.0
-                stds.append(0.0)
-                
-            z_scores.append(z)
-            self.light_curves[i].append(flux)
-            
-            # MEMORY LEAK PATCH: Truncate history to prevent infinite RAM usage.
-            # We only ever need the last `window_size` frames for math. Keeping 2x is safe.
-            if len(self.light_curves[i]) > self.window_size * 2:
-                self.light_curves[i] = self.light_curves[i][-self.window_size*2:]
-            
-            # TRIGGER 2: The Flare Catch (Sudden Spikes)
-            if abs(z) > self.z_threshold:
-                z_alerts.append(i)
-            
-        return np.array(z_scores), np.array(stds), z_alerts, var_alerts
-
-    def update_light_curves(self, fluxes):
-        """
-        Maintains an in-memory time series of flux values for every tracked star.
-        Evaluates the rolling Z-score and rolling variance for the current frame.
-        
-        Args:
-            fluxes: array-like of flux values corresponding to the fixed source IDs.
-            
-        Returns:
-            z_scores: array of current Z-scores for all stars.
-            stds: array of current rolling standard deviations for all stars.
-            z_alerts: list of source_ids that triggered a Flare alert (Z-score > threshold).
             var_alerts: list of source_ids that triggered a Variable alert (Variance > threshold).
         """
         z_scores = []
