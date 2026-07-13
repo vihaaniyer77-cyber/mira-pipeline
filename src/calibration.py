@@ -27,11 +27,7 @@ def calibrate_image(raw_image, master_bias, master_flat, bad_pixel_mask=None):
     return calibrated
 
 def align_image(target_image, reference_image):
-    """
-    Aligns the target image to the reference image using astroalign.
-    If it fails (due to lack of matching stars), it implies the telescope
-    has dragged the piggyback scope to a completely new patch of sky.
-    """
+
     try:
         aligned, _ = aa.register(target_image, reference_image)
         return aligned
@@ -59,8 +55,8 @@ def generate_master_reference(burn_in_frames):
             # It's fine if one doesn't work, we just need a decent stack
             
     if len(aligned_frames) < 3:
-        # We generally want at least 3 frames for a proper median stack to reject outliers
-        print("Building reference frame with fewer than 3 images. . . WARNING")
+        # We  want at least 3 frames for a proper median stack to reject outliers
+        print("Building reference frame with fewer than 3 images. . . ")
         
     stack = np.array(aligned_frames)
     master_reference = np.median(stack, axis=0)
