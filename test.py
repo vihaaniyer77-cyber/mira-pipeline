@@ -24,7 +24,7 @@ def test_identity_and_stability():
 
     # Central pixel of a 5x5 kernel is index [2, 2] — should dominate.
     # A ridge penalty of 1e-4 on a well-conditioned identical system means
-    # the off-diagonal elements are suppressed, leaving >95% mass at centre.
+    # the off-diagonal elements are suppressed, leaving >95% mass at center.
     assert kernel[2, 2] > 0.95, (
         f"Central kernel pixel should be >0.95 (delta function), got {kernel[2, 2]:.4f}"
     )
