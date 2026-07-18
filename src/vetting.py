@@ -48,13 +48,16 @@ def spatial_profile_vetting(extracted_object, min_fwhm=2.0, max_fwhm=8.0, max_el
 
 class TemporalVerifier:
     
-    def __init__(self, required_consecutive=3, tolerance=2.0):
+    def __init__(self, required_consecutive=3, tolerance=2.0, baseline_frames=10):
         self.required = required_consecutive
         self.tolerance = tolerance
+        self.baseline_frames = baseline_frames
+        self.frame_count = 0
         self.history = {} # obj_id -> {'count': int, 'last_pos': (x, y), 'alerted': bool, 'missed': int}
         self.next_id = 0
         
     def verify(self, current_detections_xy):
+        self.frame_count += 1
        
         valid_targets = []
         matched_ids = set()
@@ -106,4 +109,8 @@ class TemporalVerifier:
                 if self.history[obj_id]['missed'] > 1:
                     del self.history[obj_id]
                 
+        # Enforce the baseline wait: no alerts are allowed until the baseline is established
+        if self.frame_count <= self.baseline_frames:
+            return []
+            
         return valid_targets
