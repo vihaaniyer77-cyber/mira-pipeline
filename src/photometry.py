@@ -4,8 +4,7 @@ from photutils.aperture import CircularAperture, aperture_photometry
 
 class PhotometryEngine:
     
-    def __init__(self, window_size=30, z_threshold=17.0, min_std=25.0, var_threshold_multiplier=3.0):
-        self.window_size = window_size
+    def __init__(self, z_threshold=17.0, min_std=25.0, var_threshold_multiplier=3.0):
         self.z_threshold = z_threshold
         self.min_std = min_std
         self.var_threshold_multiplier = var_threshold_multiplier
@@ -55,29 +54,60 @@ class PhotometryEngine:
         z_alerts = []
         var_alerts = []
         
+        # Calculate the global ensemble zero-point correction
+        ratios = []
         for i, flux in enumerate(fluxes):
+            if i in self.light_curves and len(self.light_curves[i]) >= 2:
+                history = self.light_curves[i]
+                mean_flux = np.mean(history)
+                # Only use bright, stable stars for the ensemble calculation
+                if mean_flux > 100.0:
+                    ratios.append(flux / mean_flux)
+        
+        # Determine the global flux correction factor (median of all valid ratios)
+        # If no history exists yet (first frame), factor is 1.0
+        if len(ratios) >= 5:
+            correction_factor = np.median(ratios)
+        else:
+            correction_factor = 1.0
+            
+        # Guard against zero or NaN
+        if not np.isfinite(correction_factor) or correction_factor <= 0:
+            correction_factor = 1.0
+            
+        # Apply the correction to all incoming fluxes (Ensemble Differential Photometry)
+        corrected_fluxes = [f / correction_factor for f in fluxes]
+        
+        for i, flux in enumerate(corrected_fluxes):
             if i not in self.light_curves:
                 self.light_curves[i] = []
             
-            # Compute rolling statistics on the historical window before appending the current flux
-            history = self.light_curves[i][-self.window_size:]
+            # Compute statistics on the entire historical baseline before appending the current flux
+            history = self.light_curves[i]
             
             if len(history) >= 2:
                 mean_flux = np.mean(history)
                 raw_std_flux = np.std(history)
                 stds.append(raw_std_flux)
                 
-                # TRIGGER 1: The Variable Catch (General Variance)
                 # We model the expected noise floor using Poisson statistics (shot noise ~ sqrt(flux))
                 expected_noise = max(np.sqrt(abs(mean_flux)), self.min_std, 0.02 * abs(mean_flux))
-                if raw_std_flux > expected_noise * self.var_threshold_multiplier:
-                    var_alerts.append(i)
                 
                 # Apply the dynamic noise floor to prevent dividing by an artificially small sample std
                 std_flux = max(raw_std_flux, expected_noise)
                 
                 # Guard against exact zero std with a tiny epsilon
                 z = (flux - mean_flux) / (std_flux if std_flux > 0 else 1e-10)
+                
+                # Enforce the 10-frame baseline wait before alerting!
+                if len(history) >= 10:
+                    # TRIGGER 1: The Variable Catch (General Variance)
+                    if raw_std_flux > expected_noise * self.var_threshold_multiplier:
+                        var_alerts.append(i)
+                    
+                    # TRIGGER 2: The Flare Catch (Sudden Spikes)
+                    if abs(z) > self.z_threshold:
+                        z_alerts.append(i)
             else:
                 # Not enough history to calculate statistics
                 z = 0.0
@@ -86,13 +116,5 @@ class PhotometryEngine:
             z_scores.append(z)
             self.light_curves[i].append(flux)
             
-            # MEMORY LEAK PATCH: Truncate history to prevent infinite RAM usage.
-            # We only ever need the last `window_size` frames for math. Keeping 2x is safe.
-            if len(self.light_curves[i]) > self.window_size * 2:
-                self.light_curves[i] = self.light_curves[i][-self.window_size*2:]
-            
-            # TRIGGER 2: The Flare Catch (Sudden Spikes)
-            if abs(z) > self.z_threshold:
-                z_alerts.append(i)
-            
         return np.array(z_scores), np.array(stds), z_alerts, var_alerts
+
