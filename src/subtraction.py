@@ -35,40 +35,55 @@ def fit_optimal_kernel(target, reference, kernel_size=5):
     col = 0
     for i in range(-half_k, half_k + 1):
         for j in range(-half_k, half_k + 1):
-            patch = reference[y_min+i : y_max+i : stride, x_min+j : x_max+j : stride]
+            # Use -i, -j to correctly match the mathematical definition of convolution
+            # (which fftconvolve uses) rather than cross-correlation.
+            patch = reference[y_min-i : y_max-i : stride, x_min-j : x_max-j : stride]
             M[:, col] = patch.flatten()
             col += 1
             
-    # --- SIGMA-CLIPPING: Exclude transient pixels from the kernel solve ---
-    # We use the Median Absolute Deviation (MAD) as a robust noise estimator,
-    # then reject any pixel row that deviates more than 5-sigma from the median.
-    median_val = np.median(I_flat)
-    mad = np.median(np.abs(I_flat - median_val))
-    robust_std = 1.4826 * mad  # MAD-to-sigma conversion for Gaussian noise
-    if robust_std > 0:
-        good_mask = np.abs(I_flat - median_val) < 5.0 * robust_std
-        # Only clip if we keep enough rows to solve the linear system
-        if good_mask.sum() >= kernel_size ** 2:
-            I_flat = I_flat[good_mask]
-            M = M[good_mask, :]
-
+    # Add a column of ones to M to solve for the differential background
+    M_bg = np.hstack([M, np.ones((M.shape[0], 1))])
+    
     # Ridge penalty injected into the diagonal to prevent matrix singularity
     # (Ensures stability even if parts of the image are perfectly black)
     ridge = 1e-4 * np.eye(kernel_size**2)
     
-    # Solve the linear system using the pseudo-inverse
-    k_flat = np.linalg.solve(M.T @ M + ridge, M.T @ I_flat)
+    # Expand ridge penalty to include background (background gets 0 penalty)
+    ridge_bg = np.zeros((kernel_size**2 + 1, kernel_size**2 + 1))
+    ridge_bg[:kernel_size**2, :kernel_size**2] = ridge
+    
+    # INITIAL FIT
+    sol = np.linalg.solve(M_bg.T @ M_bg + ridge_bg, M_bg.T @ I_flat)
+    
+    # --- SIGMA-CLIPPING: Exclude transient pixels from the kernel solve ---
+    # We must clip based on the RESIDUALS of the initial fit, NOT the raw image!
+    # Clipping the raw image throws away all the stars, which the solver needs to match PSFs.
+    residuals = I_flat - (M_bg @ sol)
+    mad = np.median(np.abs(residuals - np.median(residuals)))
+    robust_std = 1.4826 * mad
+    
+    if robust_std > 0:
+        good_mask = np.abs(residuals) < 5.0 * robust_std
+        if good_mask.sum() >= kernel_size ** 2 + 1:
+            I_flat = I_flat[good_mask]
+            M_bg = M_bg[good_mask, :]
+            # RE-FIT with outliers excluded
+            sol = np.linalg.solve(M_bg.T @ M_bg + ridge_bg, M_bg.T @ I_flat)
+
+    
+    # Extract kernel and background offset
+    k_flat = sol[:-1]
+    bg_diff = sol[-1]
+    
     K = k_flat.reshape((kernel_size, kernel_size))
     
-    # Normalize the kernel to sum to 1 to preserve flux in the convolved reference.
-    # An un-normalized kernel would globally scale the reference, leaving a systematic
-    # DC offset across the entire difference image instead of pure noise + transients.
-    if K.sum() != 0:
-        K /= K.sum()
+    # NOTE: The forced normalization K /= K.sum() has been removed.
+    # The kernel must be allowed to sum to <1 or >1 to properly scale
+    # the reference image if the target image has different atmospheric transmission (clouds).
     
-    return K
+    return K, bg_diff
 
-def optimal_image_subtraction(target_image, reference_image, psf_kernel=None):
+def optimal_image_subtraction(target_image, reference_image, psf_kernel=None, bg_diff=0.0):
     """
     Engine A: The Discovery Engine.
     
@@ -76,22 +91,38 @@ def optimal_image_subtraction(target_image, reference_image, psf_kernel=None):
     that appear in empty space. It dynamically blurs the pristine reference image 
     to match the atmospheric distortion of the current frame, then subtracts them.
     
-    Math: Difference = Target - (Reference ⊗ K)
+    Math: Difference = Target - (Reference ⊗ K) - Bkg
     
     Returns:
         difference_image: A 2D array where static stars have been mathematically 
                           erased, leaving only pure noise and new transients.
     """
     if psf_kernel is None:
-        # Calculate the dynamic atmospheric blur
-        psf_kernel = fit_optimal_kernel(target_image, reference_image, kernel_size=5)
+        # Calculate the dynamic atmospheric blur and background offset in BOTH directions
+        # This handles the case where the reference image is blurrier than the target image,
+        # preventing massive ringing artifacts from unstable deconvolution.
+        K1, bg1 = fit_optimal_kernel(target_image, reference_image, kernel_size=5)
+        K2, bg2 = fit_optimal_kernel(reference_image, target_image, kernel_size=5)
         
-    # Artificially blur the reference image using Fast Fourier Transform convolution (Multi-Core)
-    with scipy.fft.set_workers(-1):
-        convolved_ref = fftconvolve(reference_image, psf_kernel, mode='same')
-    
-    # Subtract to isolate transients
-    difference_image = target_image - convolved_ref
+        # Less negative mass means a more physically stable blurring kernel (closer to 0 is better).
+        if np.sum(K1[K1 < 0]) > np.sum(K2[K2 < 0]):
+            # Reference is sharper. Blur reference to match target.
+            with scipy.fft.set_workers(-1):
+                convolved_ref = fftconvolve(reference_image, K1, mode='same')
+            difference_image = target_image - convolved_ref - bg1
+        else:
+            # Target is sharper. Blur target to match reference.
+            with scipy.fft.set_workers(-1):
+                convolved_target = fftconvolve(target_image, K2, mode='same')
+            difference_image = convolved_target - reference_image - bg2
+            
+    else:
+        # Artificially blur the reference image using Fast Fourier Transform convolution (Multi-Core)
+        with scipy.fft.set_workers(-1):
+            convolved_ref = fftconvolve(reference_image, psf_kernel, mode='same')
+        
+        # Subtract to isolate transients, applying the background offset
+        difference_image = target_image - convolved_ref - bg_diff
     
     return difference_image
 
