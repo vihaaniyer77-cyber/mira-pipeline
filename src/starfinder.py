@@ -3,8 +3,8 @@ from astropy.stats import sigma_clipped_stats
 from photutils.detection import DAOStarFinder
 from scipy.spatial import cKDTree
 
-def find_stars_autonomously(image, fwhm_estimate=3.0, threshold_sigma=5.0, max_stars=2000, saturation_level=55000.0, min_separation=6.0):
- 
+def find_stars_autonomously(image, fwhm_estimate=3.0, threshold_sigma=5.0, max_stars=2000, saturation_level=55000.0, min_separation=16.0):
+    
     # Estimate the background and background noise
     mean, median, std = sigma_clipped_stats(image, sigma=3.0)
     
