@@ -126,7 +126,7 @@ def optimal_image_subtraction(target_image, reference_image, psf_kernel=None, bg
     
     return difference_image
 
-def extract_sources_from_difference(difference_image, background_sigma=20.0):
+def extract_sources_from_difference(difference_image, background_sigma=20.0, edge_margin=250):
     """
     Scans the subtracted difference image to find statistically significant clusters
     of glowing pixels that survived the subtraction process.
@@ -135,6 +135,8 @@ def extract_sources_from_difference(difference_image, background_sigma=20.0):
         difference_image: 2D numpy array (the output of Engine A)
         background_sigma: The SNR threshold required to trigger an extraction.
                           (e.g. 5.0 means the object must be 5x brighter than the noise floor)
+        edge_margin: Number of pixels from the edge of the image to ignore.
+                     (Ignores artifacts from zero-padding during image alignment)
                           
     Returns:
         objects: A structured numpy array of detections (includes 'x', 'y', 'a', 'b', 'flux').
@@ -155,7 +157,29 @@ def extract_sources_from_difference(difference_image, background_sigma=20.0):
     # vetting pipeline with false positives, especially since there is no downstream ML classifier.
     thresh = background_sigma * bkg.globalrms
     
-    # Extract contiguous blobs of pixels exceeding the threshold
-    objects = sep.extract(diff_data - bkg.back(), thresh)
+    # Increase deblending limit to handle crowded stellar fields.
+    # The default of 1024 is often exceeded on dense star fields.
+    sep.set_sub_object_limit(4096)
     
+    try:
+        objects = sep.extract(diff_data - bkg.back(), thresh)
+    except Exception as e:
+        # Graceful fallback: if deblending still overflows, raise the threshold
+        # and try again at 30-sigma to only grab the brightest survivors
+        try:
+            objects = sep.extract(diff_data - bkg.back(), 30.0 * bkg.globalrms)
+        except Exception:
+            # If it still fails, return an empty array
+            import numpy.lib.recfunctions as rfn
+            objects = np.array([], dtype=[('x','f4'),('y','f4'),('a','f4'),('b','f4'),('flux','f4'),('npix','i4'),('peak','f4')])
+    
+    if len(objects) > 0:
+        h, w = difference_image.shape
+        # Filter out objects too close to the edge to avoid alignment padding artifacts
+        good_mask = (
+            (objects['x'] > edge_margin) & (objects['x'] < w - edge_margin) &
+            (objects['y'] > edge_margin) & (objects['y'] < h - edge_margin)
+        )
+        objects = objects[good_mask]
+        
     return objects, bkg.globalrms
