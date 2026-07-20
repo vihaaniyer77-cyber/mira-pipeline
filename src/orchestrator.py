@@ -197,6 +197,12 @@ class Orchestrator:
             if not matched:
                 merged_candidates.append(det)
 
+        # -- ATMOSPHERIC DEGRADATION GATE --
+        # If a cloud causes hundreds of stars to suddenly fluctuate, drop the frame.
+        if len(merged_candidates) > 100:
+            logging.warning(f"Atmospheric Degradation Detected! {len(merged_candidates)} simultaneous alerts. Dropping frame.")
+            return # Exit and wait for the next frame
+
         # ---------------------------------------------------------
         # PHASE 3: TEMPORAL VETTING & LOGGING
         # ---------------------------------------------------------
