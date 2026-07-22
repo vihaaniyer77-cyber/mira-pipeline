@@ -148,12 +148,24 @@ def solve_wcs_for_image(fits_filepath):
     wcs_output_path = base_path + ".wcs"
     #IMPORTANT, MAKE SURE TO DOWNLOAD THE FILES BEFOREHAND!!!!!!
     try:
+        # Convert Windows path to WSL Linux path (e.g. C:\... -> /mnt/c/...)
+        wsl_path_result = subprocess.run(
+            ["wsl", "wslpath", "-a", "-u", fits_filepath],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        if wsl_path_result.returncode == 0 and wsl_path_result.stdout.strip():
+            linux_filepath = wsl_path_result.stdout.strip()
+        else:
+            linux_filepath = fits_filepath  # Fallback just in case
+
         # Run the local solve-field command -- launches an external terminal solve-field
         # --overwrite: Overwrite existing .wcs files
         # --no-plots: We don't need astrometry.net generating annotated images
         # --cpulimit 60: Fail fast if it can't solve in 60 seconds
         result = subprocess.run(
-            ["wsl", "solve-field", "--overwrite", "--no-plots", "--cpulimit", "60", fits_filepath],
+            ["wsl", "solve-field", "--overwrite", "--no-plots", "--cpulimit", "60", linux_filepath],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True
