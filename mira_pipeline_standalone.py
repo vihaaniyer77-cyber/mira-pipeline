@@ -164,10 +164,10 @@ def solve_wcs_for_image(fits_filepath):
         # Run the local solve-field command -- launches an external terminal solve-field
         # --overwrite: Overwrite existing .wcs files
         # --no-plots: We don't need astrometry.net generating annotated images
-        # --cpulimit 60: Fail fast if it can't solve in 60 seconds
+        # --cpulimit 600: Fail fast if it can't solve in 600 seconds (10 minutes)
         # --scale-units arcsecperpix / --scale-low / --scale-high: Provide telescope scale hints to speed up solving
         result = subprocess.run(
-            ["wsl", "solve-field", "--overwrite", "--no-plots", "--cpulimit", "60", 
+            ["wsl", "solve-field", "--overwrite", "--no-plots", "--cpulimit", "600", 
              "--scale-units", "arcsecperpix", "--scale-low", "0.59", "--scale-high", "0.62", 
              linux_filepath],
             stdout=subprocess.PIPE,
