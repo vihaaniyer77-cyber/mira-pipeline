@@ -1,3 +1,4 @@
+#UPDATED
 # MIRA Pipeline Standalone
 import os
 import sys
@@ -152,7 +153,7 @@ def solve_wcs_for_image(fits_filepath):
         # --no-plots: We don't need astrometry.net generating annotated images
         # --cpulimit 60: Fail fast if it can't solve in 60 seconds
         result = subprocess.run(
-            ["solve-field", "--overwrite", "--no-plots", "--cpulimit", "60", fits_filepath],
+            ["wsl", "solve-field", "--overwrite", "--no-plots", "--cpulimit", "60", fits_filepath],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True
@@ -1564,35 +1565,44 @@ def main():
     # --- LOAD CALIBRATION FRAMES ---
     calib_dir = os.path.join(ssd_root, 'calibration frames')
     flat_data, bias_data = None, None
-    
-    bias_path = os.path.join(calib_dir, 'median_bias.fts')
-    flat_path = os.path.join(calib_dir, f'mean_flat_{args.filter}.fts')
-    
+
+    # Try .fits extension first, fall back to .fts
+    def _find_calib_file(calib_dir, basename):
+        for ext in ['.fits', '.fts', '.fit']:
+            p = os.path.join(calib_dir, basename + ext)
+            if os.path.exists(p):
+                return p
+        return None
+
+    bias_path = _find_calib_file(calib_dir, 'median_bias')
+    flat_path = _find_calib_file(calib_dir, f'mean_flat_{args.filter}')
+
     try:
-        if os.path.exists(bias_path):
+        if bias_path:
             with fits.open(bias_path) as hdul:
                 bias_data = hdul[0].data.astype(float)
             print(f"Loaded master bias: {bias_path}")
         else:
-            print(f"Warning: Master bias not found at {bias_path}")
-            
-        if os.path.exists(flat_path):
+            print(f"Warning: Master bias not found in '{calib_dir}' (tried .fits/.fts/.fit)")
+
+        if flat_path:
             with fits.open(flat_path) as hdul:
                 flat_data = hdul[0].data.astype(float)
             print(f"Loaded master flat ({args.filter}): {flat_path}")
         else:
-            print(f"Warning: Master flat not found at {flat_path}")
+            print(f"Warning: Master flat not found in '{calib_dir}' (tried .fits/.fts/.fit)")
     except Exception as e:
         print(f"Error loading calibration frames: {e}")
 
     try:
-        folder_name = input("Enter the folder name for tonight's data (e.g. 20260610): ").strip()
+        folder_name = input("Enter the folder name for tonight's data (e.g. 20260722): ").strip()
     except EOFError:
         folder_name = "test_data"
-        
+
+    # Images are stored inside Desktop\14-inch Photometry\<folder_name>
     desktop_dir = os.path.join(os.path.expanduser("~"), "Desktop")
-    target_dir = os.path.join(desktop_dir, folder_name)
-    
+    target_dir = os.path.join(desktop_dir, "14-inch Photometry", folder_name)
+
     if not os.path.exists(target_dir):
         print(f"Warning: Target directory '{target_dir}' not found. The GUI will still launch and watch this folder for new files.")
 
